@@ -1,0 +1,2642 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BW Werkfeuerwehr – Führungssystem</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #090b0e;
+  --surface: #111318;
+  --surface2: #161a23;
+  --surface3: #1c2130;
+  --border: #252b3a;
+  --border2: #2f3749;
+  --red: #d42020;
+  --red2: #ff3333;
+  --red-glow: rgba(212,32,32,0.35);
+  --orange: #e06020;
+  --yellow: #e8b820;
+  --green: #28b858;
+  --green-glow: rgba(40,184,88,0.3);
+  --blue: #3a80e0;
+  --blue2: #6aaaf8;
+  --text: #dde3f0;
+  --text-dim: #6a7590;
+  --text-mid: #9aa3be;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* scanlines */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none; z-index: 9998;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--surface);
+  border-bottom: 2px solid var(--red);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 54px;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  box-shadow: 0 2px 30px rgba(212,32,32,0.25);
+}
+.h-left { display: flex; align-items: center; gap: 14px; }
+.h-right { display: flex; align-items: center; gap: 20px; }
+
+.menu-toggle {
+  background: none; border: 1px solid var(--border2);
+  color: var(--text); padding: 7px 12px; cursor: pointer;
+  font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600;
+  letter-spacing: 2px; display: flex; align-items: center; gap: 8px;
+  transition: all 0.2s;
+}
+.menu-toggle:hover { border-color: var(--red); color: var(--red); }
+.ham { display: flex; flex-direction: column; gap: 3px; }
+.ham span { width: 15px; height: 1.5px; background: currentColor; display: block; }
+
+.bw-logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.bw-emblem {
+  width: 34px; height: 34px; background: var(--red);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700;
+  color: white; letter-spacing: 1px;
+}
+.bw-title {
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+  letter-spacing: 3px; font-size: 15px; color: var(--text);
+}
+.bw-sub { font-size: 10px; color: var(--text-dim); letter-spacing: 2px; margin-top: 1px; }
+
+.current-module {
+  font-family: 'Rajdhani', sans-serif; font-size: 13px;
+  font-weight: 600; letter-spacing: 3px; color: var(--red);
+  text-transform: uppercase; border-left: 1px solid var(--border2);
+  padding-left: 14px;
+}
+
+.h-clock {
+  font-family: 'Share Tech Mono', monospace; font-size: 20px;
+  color: var(--red2); text-shadow: 0 0 14px var(--red-glow); letter-spacing: 2px;
+}
+.h-date { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); text-align: right; }
+
+.alarm-indicator {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 8px var(--green-glow);
+  animation: pulse 2s ease-in-out infinite;
+}
+.alarm-indicator.alert { background: var(--red); box-shadow: 0 0 10px var(--red-glow); animation: fastpulse 0.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+@keyframes fastpulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* ── SIDEBAR NAV ── */
+.nav-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 150; display: none; backdrop-filter: blur(3px);
+}
+.nav-overlay.open { display: block; }
+
+.sidebar-nav {
+  position: fixed; top: 54px; left: 0; bottom: 0;
+  width: 280px; background: var(--surface);
+  border-right: 1px solid var(--border2);
+  z-index: 160; transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.sidebar-nav.open { transform: translateX(0); }
+
+.nav-section-label {
+  font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600;
+  letter-spacing: 3px; color: var(--text-dim); padding: 16px 18px 6px;
+  text-transform: uppercase; border-top: 1px solid var(--border);
+}
+.nav-section-label:first-child { border-top: none; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 18px; cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.15s; position: relative;
+}
+.nav-item:hover { background: var(--surface2); }
+.nav-item.active { background: var(--surface2); border-left-color: var(--red); }
+.nav-item.active .nav-label { color: var(--text); }
+
+.nav-icon { font-size: 20px; min-width: 26px; text-align: center; }
+.nav-info { flex: 1; }
+.nav-label { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600; letter-spacing: 1px; color: var(--text-mid); }
+.nav-desc { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+
+.nav-badge {
+  font-family: 'Share Tech Mono', monospace; font-size: 11px;
+  padding: 2px 7px; border: 1px solid var(--border2); color: var(--text-dim);
+}
+.nav-badge.active-badge { border-color: var(--red); color: var(--red); }
+
+.nav-footer {
+  margin-top: auto; padding: 16px 18px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace;
+}
+
+/* ── MAIN AREA ── */
+.main-area {
+  position: fixed; top: 54px; left: 0; right: 0; bottom: 28px;
+  overflow: hidden;
+}
+
+/* ── PAGES ── */
+.page { display: none; width: 100%; height: 100%; }
+.page.active { display: flex; flex-direction: column; }
+
+/* ── STATUS BAR ── */
+.statusbar {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 28px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0;
+  font-family: 'Share Tech Mono', monospace; font-size: 10px;
+  color: var(--text-dim); z-index: 190;
+}
+.sb-item {
+  padding: 0 14px; border-right: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px; height: 100%;
+}
+.sb-dot { width: 6px; height: 6px; border-radius: 50%; }
+.sb-dot.green { background: var(--green); box-shadow: 0 0 4px var(--green-glow); }
+.sb-dot.red { background: var(--red); box-shadow: 0 0 4px var(--red-glow); }
+.sb-dot.yellow { background: var(--yellow); }
+
+/* ── DASHBOARD ── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto auto;
+  gap: 14px; padding: 18px;
+  overflow-y: auto; flex: 1;
+}
+
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 18px;
+  cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+.dash-card:hover { border-color: var(--red); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+.dash-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--red); transform: scaleX(0); transform-origin: left;
+  transition: transform 0.3s;
+}
+.dash-card:hover::before { transform: scaleX(1); }
+
+.dash-card.span2 { grid-column: span 2; }
+.dash-card.span3 { grid-column: span 3; }
+
+.dc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.dc-icon { font-size: 28px; }
+.dc-title { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 2px; }
+.dc-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+.dc-stat { font-family: 'Share Tech Mono', monospace; font-size: 36px; color: var(--text); line-height: 1; }
+.dc-stat.red { color: var(--red); text-shadow: 0 0 12px var(--red-glow); }
+.dc-stat.green { color: var(--green); }
+.dc-stat.yellow { color: var(--yellow); }
+
+.dc-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; letter-spacing: 1px; font-family: 'Rajdhani', sans-serif; font-weight: 600; }
+
+.dc-list { display: flex; flex-direction: column; gap: 6px; }
+.dc-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; background: var(--surface2);
+  border: 1px solid var(--border); font-size: 12px;
+}
+.dc-row-label { flex: 1; color: var(--text-mid); }
+.dc-row-val { font-family: 'Share Tech Mono', monospace; font-size: 13px; }
+.dc-row-val.ok { color: var(--green); }
+.dc-row-val.warn { color: var(--yellow); }
+.dc-row-val.crit { color: var(--red); }
+
+.dash-btn {
+  display: block; width: 100%;
+  padding: 14px; margin-top: 12px;
+  background: var(--red); border: none;
+  color: white; cursor: pointer;
+  font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  transition: background 0.2s;
+}
+.dash-btn:hover { background: #b81818; }
+.dash-btn.secondary {
+  background: none; border: 1px solid var(--border2);
+  color: var(--text-mid); margin-top: 6px;
+}
+.dash-btn.secondary:hover { border-color: var(--text-mid); color: var(--text); background: var(--surface2); }
+
+/* weather-style row */
+.info-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.info-chip {
+  padding: 5px 12px; background: var(--surface2);
+  border: 1px solid var(--border); font-size: 12px; color: var(--text-mid);
+  font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: 1px;
+}
+.info-chip span { color: var(--text); }
+
+/* ── AS PAGE (Atemschutz) ── */
+.as-layout { display: flex; flex: 1; overflow: hidden; }
+
+.as-sidebar {
+  width: 230px; background: var(--surface);
+  border-right: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.as-sidebar-label {
+  font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600;
+  letter-spacing: 3px; color: var(--text-dim); padding: 14px 14px 6px;
+  text-transform: uppercase;
+}
+.as-trupp-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  border-left: 3px solid transparent; transition: all 0.15s;
+}
+.as-trupp-item:hover { background: var(--surface2); }
+.as-trupp-item.active { background: var(--surface2); border-left-color: var(--red); }
+.t-num { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: var(--red); min-width: 26px; }
+.t-name { font-size: 13px; font-weight: 600; }
+.t-sub { font-size: 10px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; }
+.t-badge {
+  font-family: 'Share Tech Mono', monospace; font-size: 10px;
+  padding: 2px 5px; border: 1px solid var(--border2); color: var(--text-dim); margin-left: auto;
+}
+.t-badge.ok { border-color: var(--green); color: var(--green); }
+.t-badge.warn { border-color: var(--yellow); color: var(--yellow); }
+.t-badge.crit { border-color: var(--red); color: var(--red); animation: blink 1s ease infinite; }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.add-trupp-btn {
+  margin: 12px; border: 1px dashed var(--border2);
+  background: none; color: var(--text-dim); padding: 9px;
+  cursor: pointer; font-family: 'Rajdhani', sans-serif;
+  font-size: 12px; font-weight: 600; letter-spacing: 2px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.2s;
+}
+.add-trupp-btn:hover { border-color: var(--red); color: var(--red); }
+
+.as-content { flex: 1; display: flex; overflow: hidden; }
+
+/* detail col */
+.trupp-detail-col {
+  width: 300px; border-right: 1px solid var(--border2);
+  background: var(--surface2); padding: 18px; overflow-y: auto;
+}
+.td-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.td-title { font-family: 'Rajdhani', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: 2px; }
+.td-funk { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--blue2); }
+
+/* gauge */
+.gauge-wrap { display: flex; flex-direction: column; align-items: center; margin: 10px 0 14px; }
+.gauge { position: relative; width: 150px; height: 85px; overflow: hidden; }
+.gauge svg { width: 150px; height: 150px; position: absolute; top:0; left:0; }
+.gauge-val { position:absolute; bottom:0; width:100%; text-align:center;
+  font-family:'Share Tech Mono',monospace; font-size:26px; font-weight:700; }
+.gauge-lbl { font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:600;
+  letter-spacing:3px; color:var(--text-dim); margin-top:4px; }
+
+.stat-rows { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+.stat-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:7px 10px; background:var(--surface); border:1px solid var(--border);
+}
+.stat-lbl { font-size:11px; color:var(--text-dim); font-family:'Rajdhani',sans-serif;
+  font-weight:600; letter-spacing:1px; text-transform:uppercase; }
+.stat-val { font-family:'Share Tech Mono',monospace; font-size:14px; }
+.stat-val.warn { color:var(--yellow); }
+.stat-val.crit { color:var(--red); animation:blink 1s infinite; }
+
+.action-btns { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+.action-btn {
+  width:100%; padding:9px 12px; border:1px solid var(--border2);
+  background:var(--surface); color:var(--text); cursor:pointer;
+  font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600;
+  letter-spacing:2px; text-transform:uppercase;
+  display:flex; align-items:center; gap:8px; transition:all 0.15s; text-align:left;
+}
+.action-btn:hover { background:var(--surface2); border-color:var(--text-mid); }
+.action-btn.mayday { border-color:var(--orange); color:var(--orange); }
+.action-btn.mayday:hover { background:rgba(224,96,32,0.1); }
+
+.meldungen-list { max-height:160px; overflow-y:auto; }
+.meldung-item {
+  display:flex; gap:8px; padding:4px 0;
+  border-bottom:1px solid var(--border); font-size:11px;
+}
+.meldung-time { font-family:'Share Tech Mono',monospace; color:var(--text-dim); min-width:44px; }
+
+/* panels */
+.as-panel {
+  width:280px; border-right:1px solid var(--border2);
+  background:var(--surface2); padding:18px; overflow-y:auto;
+  display:none;
+}
+.as-panel.open { display:flex; flex-direction:column; gap:10px; }
+.panel-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:4px;
+}
+.panel-title { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; letter-spacing:3px; text-transform:uppercase; }
+.close-btn { background:none; border:none; color:var(--red); cursor:pointer; font-size:16px; }
+
+.select-field {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; background:var(--surface); border:1px solid var(--border);
+  cursor:pointer; transition:border-color 0.2s;
+}
+.select-field:hover { border-color:var(--red); }
+.select-field.filled { border-color:var(--green); }
+.sf-icon { font-size:15px; color:var(--red); }
+.sf-text { font-size:13px; color:var(--text-dim); flex:1; }
+.select-field.filled .sf-text { color:var(--text); }
+
+.media-row { display:flex; gap:6px; }
+.media-btn {
+  flex:1; padding:8px; border:1px solid var(--border); background:var(--surface);
+  color:var(--text-dim); cursor:pointer; font-family:'Rajdhani',sans-serif;
+  font-size:11px; font-weight:600; letter-spacing:1px; transition:all 0.2s;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+}
+.media-btn:hover { border-color:var(--blue); color:var(--blue); }
+
+.save-btn {
+  padding:13px; background:var(--green); border:none; color:white; cursor:pointer;
+  font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; letter-spacing:3px;
+  text-transform:uppercase; width:100%; transition:background 0.2s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.save-btn:hover { background:#1e9048; }
+
+.druck-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:5px;
+}
+.druck-cell {
+  padding:9px; background:var(--surface); border:1px solid var(--border);
+  text-align:center; font-family:'Share Tech Mono',monospace; font-size:15px;
+  cursor:pointer; transition:all 0.12s;
+}
+.druck-cell:hover { border-color:var(--red); color:var(--red); transform:scale(1.04); }
+.druck-cell.sel { background:rgba(212,32,32,0.12); border-color:var(--red); color:var(--red); }
+
+.druck-input {
+  width:100%; padding:10px; background:var(--surface); border:1px solid var(--red);
+  color:var(--red); font-family:'Share Tech Mono',monospace; font-size:22px;
+  text-align:center; outline:none;
+}
+
+/* empty state */
+.empty-state {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:12px; color:var(--text-dim);
+}
+.empty-icon { font-size:56px; opacity:0.15; }
+.empty-label { font-family:'Rajdhani',sans-serif; font-size:16px; letter-spacing:4px; text-transform:uppercase; }
+.empty-sub { font-size:12px; }
+
+/* ── EINSATZPROTOKOLL ── */
+.proto-layout { display:flex; flex:1; overflow:hidden; }
+.proto-sidebar {
+  width:280px; background:var(--surface); border-right:1px solid var(--border2);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.proto-toolbar {
+  padding:12px; border-bottom:1px solid var(--border);
+  display:flex; flex-direction:column; gap:8px;
+}
+.proto-new-btn {
+  width:100%; padding:10px; background:var(--red); border:none; color:white;
+  cursor:pointer; font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase; transition:background 0.2s;
+}
+.proto-new-btn:hover { background:#b81818; }
+.proto-search {
+  width:100%; padding:8px 10px; background:var(--surface2);
+  border:1px solid var(--border); color:var(--text);
+  font-family:'Exo 2',sans-serif; font-size:12px; outline:none;
+}
+.proto-search::placeholder { color:var(--text-dim); }
+
+.proto-list { overflow-y:auto; flex:1; }
+.proto-item {
+  padding:12px 14px; border-bottom:1px solid var(--border);
+  cursor:pointer; transition:background 0.15s;
+  border-left:3px solid transparent;
+}
+.proto-item:hover { background:var(--surface2); }
+.proto-item.active { background:var(--surface2); border-left-color:var(--red); }
+.pi-id { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--red); margin-bottom:3px; }
+.pi-title { font-size:13px; font-weight:600; }
+.pi-meta { font-size:11px; color:var(--text-dim); margin-top:2px; font-family:'Share Tech Mono',monospace; }
+
+.proto-status {
+  display:inline-block; padding:2px 7px;
+  font-family:'Rajdhani',sans-serif; font-size:10px; font-weight:700;
+  letter-spacing:1px; margin-left:6px;
+}
+.proto-status.aktiv { background:rgba(212,32,32,0.15); color:var(--red); border:1px solid var(--red); }
+.proto-status.abg { background:rgba(40,184,88,0.1); color:var(--green); border:1px solid var(--green); }
+
+.proto-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.proto-form { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
+
+.form-section {
+  background:var(--surface); border:1px solid var(--border2); padding:16px;
+}
+.form-section-title {
+  font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:3px; color:var(--text-dim); text-transform:uppercase;
+  margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border);
+}
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.form-grid.cols3 { grid-template-columns:1fr 1fr 1fr; }
+.form-grid.full { grid-template-columns:1fr; }
+.form-group { display:flex; flex-direction:column; gap:4px; }
+.form-label {
+  font-family:'Rajdhani',sans-serif; font-size:10px; font-weight:600;
+  letter-spacing:2px; color:var(--text-dim); text-transform:uppercase;
+}
+.form-input, .form-select, .form-textarea {
+  padding:9px 11px; background:var(--surface2);
+  border:1px solid var(--border2); color:var(--text);
+  font-family:'Exo 2',sans-serif; font-size:13px; outline:none;
+  transition:border-color 0.2s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color:var(--red); }
+.form-select option { background:var(--surface2); }
+.form-textarea { resize:vertical; min-height:80px; }
+
+.timeline { display:flex; flex-direction:column; gap:0; }
+.tl-entry {
+  display:flex; gap:12px; position:relative;
+}
+.tl-entry::before {
+  content:''; position:absolute; left:18px; top:24px; bottom:-4px;
+  width:1px; background:var(--border);
+}
+.tl-entry:last-child::before { display:none; }
+.tl-dot {
+  width:8px; height:8px; border-radius:50%; background:var(--red);
+  margin-top:8px; flex-shrink:0; margin-left:15px;
+  box-shadow:0 0 6px var(--red-glow);
+}
+.tl-content { flex:1; padding-bottom:14px; }
+.tl-time { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim); }
+.tl-text { font-size:12px; margin-top:2px; }
+.tl-type {
+  display:inline-block; padding:1px 6px; font-size:10px; font-family:'Rajdhani',sans-serif;
+  font-weight:700; letter-spacing:1px; margin-left:6px; border:1px solid var(--border);
+  color:var(--text-dim); vertical-align:middle;
+}
+.tl-type.alarm { border-color:var(--red); color:var(--red); }
+.tl-type.info { border-color:var(--blue); color:var(--blue2); }
+.tl-type.ok { border-color:var(--green); color:var(--green); }
+
+.add-tl-row { display:flex; gap:8px; margin-top:8px; }
+.add-tl-input {
+  flex:1; padding:8px 10px; background:var(--surface2);
+  border:1px solid var(--border); color:var(--text);
+  font-family:'Exo 2',sans-serif; font-size:12px; outline:none;
+}
+.add-tl-input:focus { border-color:var(--red); }
+.add-tl-btn {
+  padding:8px 14px; background:var(--surface); border:1px solid var(--border2);
+  color:var(--text-mid); cursor:pointer; font-family:'Rajdhani',sans-serif;
+  font-size:12px; font-weight:700; letter-spacing:1px; transition:all 0.2s;
+}
+.add-tl-btn:hover { border-color:var(--red); color:var(--red); }
+
+.proto-footer {
+  padding:12px 20px; border-top:1px solid var(--border);
+  display:flex; gap:10px; background:var(--surface);
+}
+.pf-btn {
+  padding:10px 20px; border:1px solid var(--border2); background:none;
+  color:var(--text-mid); cursor:pointer; font-family:'Rajdhani',sans-serif;
+  font-size:13px; font-weight:700; letter-spacing:2px; transition:all 0.2s;
+}
+.pf-btn:hover { border-color:var(--text); color:var(--text); }
+.pf-btn.primary { background:var(--red); border-color:var(--red); color:white; }
+.pf-btn.primary:hover { background:#b81818; }
+.pf-btn.danger { border-color:var(--orange); color:var(--orange); }
+
+/* ── KRÄFTEÜBERSICHT ── */
+.krafte-layout { display:flex; flex:1; overflow:hidden; flex-direction:column; }
+.krafte-toolbar {
+  padding:12px 18px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px; background:var(--surface);
+  flex-shrink:0;
+}
+.kt-label { font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:600;
+  letter-spacing:2px; color:var(--text-dim); text-transform:uppercase; }
+.kt-btn {
+  padding:7px 14px; border:1px solid var(--border2); background:none;
+  color:var(--text-mid); cursor:pointer; font-family:'Rajdhani',sans-serif;
+  font-size:12px; font-weight:600; letter-spacing:1px; transition:all 0.2s;
+}
+.kt-btn:hover { border-color:var(--red); color:var(--red); }
+.kt-btn.active-btn { border-color:var(--red); color:var(--red); background:rgba(212,32,32,0.08); }
+
+.krafte-grid {
+  flex:1; overflow-y:auto; padding:16px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:12px;
+  align-content:start;
+}
+
+.person-card {
+  background:var(--surface); border:1px solid var(--border2); padding:14px;
+  position:relative; transition:all 0.2s;
+}
+.person-card:hover { border-color:var(--blue); }
+.pc-status {
+  position:absolute; top:10px; right:10px;
+  width:8px; height:8px; border-radius:50%;
+}
+.pc-status.bereit { background:var(--green); box-shadow:0 0 6px var(--green-glow); }
+.pc-status.einsatz { background:var(--red); box-shadow:0 0 6px var(--red-glow); animation:pulse 1.5s infinite; }
+.pc-status.pause { background:var(--yellow); }
+.pc-rank { font-size:10px; color:var(--text-dim); font-family:'Rajdhani',sans-serif;
+  font-weight:600; letter-spacing:2px; text-transform:uppercase; }
+.pc-name { font-size:15px; font-weight:700; margin:2px 0; }
+.pc-funk { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--blue2); }
+.pc-quals { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
+.pc-qual {
+  font-size:9px; padding:2px 6px; border:1px solid var(--border2);
+  color:var(--text-dim); font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:1px;
+}
+.pc-qual.as { border-color:var(--orange); color:var(--orange); }
+.pc-qual.gw { border-color:var(--blue); color:var(--blue2); }
+.pc-time { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:8px; }
+
+/* ── FAHRZEUGE ── */
+.fzg-layout { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+.fzg-card {
+  background:var(--surface); border:1px solid var(--border2); padding:16px;
+  display:flex; gap:16px; align-items:flex-start;
+}
+.fzg-indicator { width:4px; align-self:stretch; background:var(--green); flex-shrink:0; }
+.fzg-indicator.warn { background:var(--yellow); }
+.fzg-indicator.out { background:var(--red); }
+.fzg-info { flex:1; }
+.fzg-id { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--red); }
+.fzg-name { font-size:16px; font-weight:700; font-family:'Rajdhani',sans-serif; letter-spacing:1px; margin:2px 0; }
+.fzg-type { font-size:11px; color:var(--text-dim); }
+.fzg-specs { display:flex; gap:16px; margin-top:10px; flex-wrap:wrap; }
+.fzg-spec { font-size:11px; color:var(--text-mid); }
+.fzg-spec strong { color:var(--text); display:block; font-family:'Share Tech Mono',monospace; font-size:13px; }
+.fzg-status-badge {
+  padding:4px 10px; border:1px solid; font-family:'Rajdhani',sans-serif;
+  font-size:11px; font-weight:700; letter-spacing:2px; align-self:flex-start;
+}
+.fzg-status-badge.bereit { border-color:var(--green); color:var(--green); }
+.fzg-status-badge.einsatz { border-color:var(--red); color:var(--red); }
+.fzg-status-badge.wartung { border-color:var(--yellow); color:var(--yellow); }
+
+/* ── ALARM ── */
+.alarm-layout { flex:1; display:flex; overflow:hidden; }
+.alarm-left { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+.alarm-right { width:320px; background:var(--surface); border-left:1px solid var(--border2); padding:16px; overflow-y:auto; }
+
+.alarm-card {
+  background:var(--surface); border:1px solid var(--border2); padding:14px;
+  cursor:pointer; transition:all 0.15s;
+}
+.alarm-card:hover { border-color:var(--text-mid); }
+.alarm-card.aktiv { border-color:var(--red); background:rgba(212,32,32,0.04); }
+.ac-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.ac-prio {
+  width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+  font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700;
+}
+.ac-prio.p1 { background:var(--red); color:white; }
+.ac-prio.p2 { background:var(--orange); color:white; }
+.ac-prio.p3 { background:var(--yellow); color:#111; }
+.ac-id { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text-dim); }
+.ac-title { font-size:14px; font-weight:700; flex:1; }
+.ac-time { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim); }
+.ac-details { display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:var(--text-mid); }
+.ac-det { display:flex; align-items:center; gap:4px; }
+
+.alarm-stat-box {
+  padding:14px; background:var(--surface2); border:1px solid var(--border);
+  margin-bottom:10px; text-align:center;
+}
+.asb-num { font-family:'Share Tech Mono',monospace; font-size:32px; }
+.asb-lbl { font-size:11px; color:var(--text-dim); font-family:'Rajdhani',sans-serif;
+  font-weight:600; letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+.alarm-right-title {
+  font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:3px; color:var(--text-dim); text-transform:uppercase;
+  border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:12px;
+}
+
+/* ── MODALS ── */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.75); z-index:500;
+  align-items:center; justify-content:center; backdrop-filter:blur(4px);
+}
+.modal-overlay.open { display:flex; }
+
+.modal {
+  background:var(--surface); border:1px solid var(--border2);
+  border-top:3px solid var(--red); width:460px; max-width:95vw;
+  box-shadow:0 0 60px rgba(0,0,0,0.8);
+}
+.modal-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:1px solid var(--border);
+}
+.modal-title { font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700; letter-spacing:3px; text-transform:uppercase; }
+.modal-body { padding:18px; display:flex; flex-direction:column; gap:12px; }
+.modal-footer { padding:12px 18px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; }
+
+.inp {
+  width:100%; padding:9px 11px; background:var(--surface2);
+  border:1px solid var(--border2); color:var(--text);
+  font-family:'Exo 2',sans-serif; font-size:13px; outline:none; transition:border-color 0.2s;
+}
+.inp:focus { border-color:var(--red); }
+.inp-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.inp-lbl { font-family:'Rajdhani',sans-serif; font-size:10px; font-weight:600;
+  letter-spacing:2px; color:var(--text-dim); margin-bottom:4px; text-transform:uppercase; }
+
+.btn { padding:9px 20px; border:1px solid var(--border2); background:none;
+  color:var(--text-dim); cursor:pointer; font-family:'Rajdhani',sans-serif;
+  font-size:13px; font-weight:700; letter-spacing:2px; transition:all 0.2s; }
+.btn:hover { border-color:var(--text); color:var(--text); }
+.btn.primary { background:var(--red); border-color:var(--red); color:white; }
+.btn.primary:hover { background:#b81818; }
+
+/* confirm dialogs */
+.confirm-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:600;
+  display:none; align-items:center; justify-content:center;
+}
+.confirm-overlay.open { display:flex; }
+.confirm-box {
+  background:var(--surface); border:1px solid var(--border2); padding:28px;
+  max-width:380px; width:90%; text-align:center;
+}
+.confirm-icon { font-size:36px; margin-bottom:10px; }
+.confirm-title { font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; letter-spacing:3px; margin-bottom:6px; }
+.confirm-text { font-size:13px; color:var(--text-mid); margin-bottom:20px; }
+.confirm-btns { display:flex; gap:10px; justify-content:center; }
+
+/* permissions panel */
+.perm-panel {
+  position:fixed; top:60px; right:16px; z-index:500;
+  background:var(--surface); border:1px solid var(--yellow);
+  border-top:3px solid var(--yellow); width:310px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.7);
+}
+.perm-panel-hdr { padding:12px 16px; border-bottom:1px solid var(--border); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700; letter-spacing:3px; color:var(--yellow); }
+.perm-panel-sub { padding:8px 16px 10px; font-size:11px; color:var(--text-dim); border-bottom:1px solid var(--border); }
+
+/* toast */
+.toast-container { position:fixed; bottom:36px; right:16px; z-index:700; display:flex; flex-direction:column; gap:6px; }
+.toast {
+  padding:10px 16px; background:var(--surface); border-left:3px solid var(--green);
+  font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; letter-spacing:1px;
+  color:var(--text); min-width:220px; animation:slideIn 0.2s ease;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);
+}
+.toast.warn { border-color:var(--yellow); }
+.toast.err { border-color:var(--red); color:var(--red); }
+@keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:none;opacity:1} }
+
+/* admin lock overlay */
+.admin-lock {
+  position:fixed; inset:0; background:rgba(5,6,9,0.96);
+  z-index:2000; display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:0;
+}
+.lock-box {
+  background:var(--surface); border:1px solid var(--border2);
+  border-top:3px solid var(--red); padding:40px 36px; width:380px; max-width:95vw;
+  text-align:center;
+}
+.lock-icon { font-size:48px; margin-bottom:16px; }
+.lock-title { font-family:'Rajdhani',sans-serif; font-size:24px; font-weight:700;
+  letter-spacing:4px; text-transform:uppercase; margin-bottom:6px; }
+.lock-sub { font-size:12px; color:var(--text-dim); margin-bottom:24px; }
+.lock-input {
+  width:100%; padding:12px; background:var(--surface2);
+  border:1px solid var(--border2); color:var(--text);
+  font-family:'Share Tech Mono',monospace; font-size:15px;
+  text-align:center; letter-spacing:3px; outline:none; margin-bottom:14px;
+  transition:border-color 0.2s;
+}
+.lock-input:focus { border-color:var(--red); }
+.lock-input.error { border-color:var(--orange); animation:shake 0.3s ease; }
+@keyframes shake { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+.lock-btn {
+  width:100%; padding:12px; background:var(--red); border:none;
+  color:white; font-family:'Rajdhani',sans-serif; font-size:15px;
+  font-weight:700; letter-spacing:3px; cursor:pointer; transition:background 0.2s;
+}
+.lock-btn:hover { background:#b81818; }
+.lock-error { font-size:12px; color:var(--orange); margin-top:10px; display:none; }
+
+/* admin badge in header */
+.admin-badge {
+  padding:4px 10px; border:1px solid var(--yellow);
+  color:var(--yellow); font-family:'Rajdhani',sans-serif;
+  font-size:11px; font-weight:700; letter-spacing:2px;
+  display:none;
+}
+.admin-badge.visible { display:block; }
+.admin-badge.admin-mode { background:rgba(232,184,32,0.1); }
+
+.lock-admin-btn {
+  background:none; border:1px solid var(--border2); color:var(--text-dim);
+  padding:4px 10px; cursor:pointer; font-family:'Rajdhani',sans-serif;
+  font-size:11px; font-weight:600; letter-spacing:2px; transition:all 0.2s;
+  margin-left:8px;
+}
+.lock-admin-btn:hover { border-color:var(--yellow); color:var(--yellow); }
+
+/* person card action overlay */
+.person-card { position:relative; overflow:visible; }
+.pc-actions {
+  display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;
+}
+.pc-action-btn {
+  flex:1; padding:5px 4px; border:1px solid var(--border2); background:none;
+  color:var(--text-dim); cursor:pointer; font-family:'Rajdhani',sans-serif;
+  font-size:10px; font-weight:700; letter-spacing:1px; text-align:center;
+  transition:all 0.15s; min-width:0;
+}
+.pc-action-btn:hover { border-color:var(--blue); color:var(--blue2); }
+.pc-action-btn.s-bereit:hover { border-color:var(--green); color:var(--green); }
+.pc-action-btn.s-einsatz:hover { border-color:var(--red); color:var(--red); }
+.pc-action-btn.s-pause:hover { border-color:var(--yellow); color:var(--yellow); }
+.pc-action-btn.del-btn:hover { border-color:var(--red); color:var(--red); }
+
+/* einsatz-zuweisung modal list */
+.einsatz-person-row {
+  display:flex; align-items:center; gap:10px; padding:9px 12px;
+  border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.12s;
+}
+.einsatz-person-row:hover { background:var(--surface2); }
+.einsatz-person-row.selected { background:rgba(212,32,32,0.08); border-left:3px solid var(--red); }
+.epr-status { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.epr-info { flex:1; }
+.epr-name { font-size:13px; font-weight:600; }
+.epr-rank { font-size:10px; color:var(--text-dim); font-family:'Rajdhani',sans-serif; letter-spacing:1px; }
+.epr-check { font-size:16px; color:var(--red); display:none; }
+.einsatz-person-row.selected .epr-check { display:block; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════════════ -->
+<header>
+  <div class="h-left">
+    <button class="menu-toggle" id="menuToggle">
+      <div class="ham"><span></span><span></span><span></span></div>
+      MENÜ
+    </button>
+    <div class="bw-logo">
+      <div class="bw-emblem">BW</div>
+      <div>
+        <div class="bw-title">WERKFEUERWEHR</div>
+        <div class="bw-sub">BUNDESWEHR · FÜHRUNGSSYSTEM</div>
+      </div>
+    </div>
+    <div class="current-module" id="currentModule">DASHBOARD</div>
+  </div>
+  <div class="h-right">
+    <div class="admin-badge" id="adminBadge">🔓 ADMIN</div>
+    <button class="lock-admin-btn" id="permPanelBtn" style="display:none;border-color:var(--yellow);color:var(--yellow);" title="Berechtigungen verwalten">⚙ RECHTE</button>
+    <button class="lock-admin-btn" id="adminLockBtn" title="Admin-Modus aktivieren">🔒</button>
+    <div class="alarm-indicator" id="alarmIndicator" title="Systemstatus"></div>
+    <div>
+      <div class="h-clock" id="clock">00:00:00</div>
+      <div class="h-date" id="hdate"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ══ NAV OVERLAY ══════════════════════════════════════════════════════════════ -->
+<div class="nav-overlay" id="navOverlay"></div>
+
+<!-- ══ SIDEBAR NAV ═════════════════════════════════════════════════════════════ -->
+<nav class="sidebar-nav" id="sidebarNav">
+  <div class="nav-section-label">Lageführung</div>
+  <div class="nav-item active" data-page="dashboard">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-info">
+      <div class="nav-label">Dashboard</div>
+      <div class="nav-desc">Lageübersicht & Schnellzugriff</div>
+    </div>
+  </div>
+  <div class="nav-item" data-page="alarm">
+    <div class="nav-icon">🚨</div>
+    <div class="nav-info">
+      <div class="nav-label">Alarmierung</div>
+      <div class="nav-desc">Einsätze & Alarme</div>
+    </div>
+    <div class="nav-badge" id="alarmBadge">0</div>
+  </div>
+
+  <div class="nav-section-label">Einsatzdokumentation</div>
+  <div class="nav-item" data-page="protokoll">
+    <div class="nav-icon">📋</div>
+    <div class="nav-info">
+      <div class="nav-label">Einsatzprotokoll</div>
+      <div class="nav-desc">Dokumentation & Berichte</div>
+    </div>
+  </div>
+  <div class="nav-item" data-page="atemschutz">
+    <div class="nav-icon">😷</div>
+    <div class="nav-info">
+      <div class="nav-label">Atemschutz</div>
+      <div class="nav-desc">AS-Truppüberwachung</div>
+    </div>
+    <div class="nav-badge" id="asBadge">0</div>
+  </div>
+
+  <div class="nav-section-label">Ressourcen</div>
+  <div class="nav-item" data-page="kraefte">
+    <div class="nav-icon">👥</div>
+    <div class="nav-info">
+      <div class="nav-label">Kräfteübersicht</div>
+      <div class="nav-desc">Personal & Verfügbarkeit</div>
+    </div>
+  </div>
+  <div class="nav-item" data-page="fahrzeuge">
+    <div class="nav-icon">🚒</div>
+    <div class="nav-info">
+      <div class="nav-label">Fahrzeuge</div>
+      <div class="nav-desc">Status & Besatzung</div>
+    </div>
+  </div>
+
+  <div class="nav-footer">
+    BW-FW FÜHRUNGSSYSTEM v2.0<br>
+    STAN OKTOBER 2024
+  </div>
+</nav>
+
+<!-- ══ MAIN AREA ════════════════════════════════════════════════════════════════ -->
+<div class="main-area">
+
+  <!-- ── DASHBOARD ── -->
+  <div class="page active" id="page-dashboard">
+    <div class="dashboard-grid">
+
+      <!-- Lagebild -->
+      <div class="dash-card span3" style="padding:14px 18px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:3px;color:var(--text-dim);margin-bottom:4px;">AKTUELLE LAGE</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;" id="lageText">BEREITSCHAFT – KEINE AKTIVEN EINSÄTZE</div>
+        </div>
+        <div class="info-row">
+          <div class="info-chip">Standort <span id="standort">Kaserne Nord</span></div>
+          <div class="info-chip">Wachabteilung <span>W1</span></div>
+          <div class="info-chip">Stärke <span id="starkeLbl">0 / 0</span></div>
+          <div class="info-chip">AS-Trupps <span id="asTruppLbl">0</span></div>
+        </div>
+      </div>
+
+      <!-- Alarmierungen -->
+      <div class="dash-card" onclick="navigate('alarm')">
+        <div class="dc-header">
+          <div class="dc-icon">🚨</div>
+          <div><div class="dc-title">Alarmierungen</div><div class="dc-sub">Aktive Einsätze heute</div></div>
+        </div>
+        <div class="dc-stat red" id="dash-alarm-count">0</div>
+        <div class="dc-label">EINSÄTZE AKTIV</div>
+        <button class="dash-btn" onclick="event.stopPropagation();navigate('alarm')">→ ALARM</button>
+      </div>
+
+      <!-- Atemschutz -->
+      <div class="dash-card" onclick="navigate('atemschutz')">
+        <div class="dc-header">
+          <div class="dc-icon">😷</div>
+          <div><div class="dc-title">Atemschutz</div><div class="dc-sub">Trupps unter Überwachung</div></div>
+        </div>
+        <div class="dc-stat" id="dash-as-count">0</div>
+        <div class="dc-label">TRUPPS AKTIV</div>
+        <button class="dash-btn" onclick="event.stopPropagation();navigate('atemschutz')">→ AS-ÜBERWACHUNG</button>
+      </div>
+
+      <!-- Personal -->
+      <div class="dash-card" onclick="navigate('kraefte')">
+        <div class="dc-header">
+          <div class="dc-icon">👥</div>
+          <div><div class="dc-title">Personal</div><div class="dc-sub">Verfügbare Kräfte</div></div>
+        </div>
+        <div class="dc-stat green" id="dash-pers-count">—</div>
+        <div class="dc-label">EINSATZBEREIT</div>
+        <button class="dash-btn secondary" onclick="event.stopPropagation();navigate('kraefte')">→ KRÄFTE</button>
+      </div>
+
+      <!-- Protokolle -->
+      <div class="dash-card span2" onclick="navigate('protokoll')">
+        <div class="dc-header">
+          <div class="dc-icon">📋</div>
+          <div><div class="dc-title">Einsatzprotokolle</div><div class="dc-sub">Letzte Dokumentationen</div></div>
+        </div>
+        <div class="dc-list" id="dash-proto-list">
+          <div class="dc-row"><span class="dc-row-label" style="color:var(--text-dim);font-size:12px;">Noch keine Protokolle vorhanden</span></div>
+        </div>
+        <button class="dash-btn secondary" onclick="event.stopPropagation();navigate('protokoll')">→ PROTOKOLLE</button>
+      </div>
+
+      <!-- Fahrzeuge -->
+      <div class="dash-card" onclick="navigate('fahrzeuge')">
+        <div class="dc-header">
+          <div class="dc-icon">🚒</div>
+          <div><div class="dc-title">Fahrzeuge</div><div class="dc-sub">Einsatzbereitschaft</div></div>
+        </div>
+        <div class="dc-list" id="dash-fzg-list"></div>
+        <button class="dash-btn secondary" onclick="event.stopPropagation();navigate('fahrzeuge')">→ FAHRZEUGE</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── ATEMSCHUTZ ── -->
+  <div class="page" id="page-atemschutz">
+    <div class="as-layout">
+      <aside class="as-sidebar">
+        <div class="as-sidebar-label">Trupps im Einsatz</div>
+        <ul class="as-trupp-list" id="asTruppList" style="list-style:none;"></ul>
+        <button class="add-trupp-btn" id="addTruppBtn">+ Neuer Trupp</button>
+      </aside>
+      <div class="as-content" id="asContent">
+        <div class="empty-state">
+          <div class="empty-icon">😷</div>
+          <div class="empty-label">Kein Trupp ausgewählt</div>
+          <div class="empty-sub">Trupp auswählen oder neuen Trupp anlegen</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EINSATZPROTOKOLL ── -->
+  <div class="page" id="page-protokoll">
+    <div class="proto-layout">
+      <div class="proto-sidebar">
+        <div class="proto-toolbar">
+          <button class="proto-new-btn" id="newProtoBtn">+ NEUES PROTOKOLL</button>
+          <input class="proto-search" id="protoSearch" placeholder="🔍  Protokoll suchen...">
+        </div>
+        <div class="proto-list" id="protoList"></div>
+      </div>
+      <div class="proto-main" id="protoMain">
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-label">Protokoll auswählen</div>
+          <div class="empty-sub">oder neues Protokoll anlegen</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KRÄFTEÜBERSICHT ── -->
+  <div class="page" id="page-kraefte">
+    <div class="krafte-layout">
+      <div class="krafte-toolbar">
+        <span class="kt-label">Filter:</span>
+        <button class="kt-btn active-btn" data-filter="alle">Alle</button>
+        <button class="kt-btn" data-filter="bereit">Bereit</button>
+        <button class="kt-btn" data-filter="einsatz">Im Einsatz</button>
+        <button class="kt-btn" data-filter="pause">Pause</button>
+        <div style="margin-left:auto;display:flex;gap:8px;">
+          <button class="kt-btn" id="einsatzZuweisBtn">🚒 Einsatz-Zuweisung</button>
+          <button class="kt-btn admin-only-btn" id="addPersonBtn">+ Person 🔒</button>
+        </div>
+      </div>
+      <div class="krafte-grid" id="kraefteGrid"></div>
+    </div>
+  </div>
+
+  <!-- ── FAHRZEUGE ── -->
+  <div class="page" id="page-fahrzeuge">
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
+      <button class="kt-btn admin-only-btn" id="addFahrzeugBtn">+ Fahrzeug 🔒</button>
+    </div>
+    <div class="fzg-layout" id="fzgList"></div>
+  </div>
+
+  <!-- ── ALARMIERUNG ── -->
+  <div class="page" id="page-alarm">
+    <div class="alarm-layout">
+      <div class="alarm-left" id="alarmLeft">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;color:var(--text-dim);">AKTIVE UND ABGESCHLOSSENE EINSÄTZE</div>
+          <button class="kt-btn" id="newAlarmBtn">+ NEUER EINSATZ</button>
+        </div>
+        <div id="alarmCards"></div>
+      </div>
+      <div class="alarm-right">
+        <div class="alarm-right-title">STATISTIK HEUTE</div>
+        <div class="alarm-stat-box"><div class="asb-num" id="statGes">0</div><div class="asb-lbl">Einsätze gesamt</div></div>
+        <div class="alarm-stat-box"><div class="asb-num" style="color:var(--red)" id="statAktiv">0</div><div class="asb-lbl">Aktiv</div></div>
+        <div class="alarm-stat-box"><div class="asb-num" style="color:var(--green)" id="statAbg">0</div><div class="asb-lbl">Abgeschlossen</div></div>
+        <div style="margin-top:14px;">
+          <div class="alarm-right-title">EINSATZARTEN</div>
+          <div class="dc-list" id="alarmTypes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ STATUS BAR ════════════════════════════════════════════════════════════════ -->
+<div class="statusbar">
+  <div class="sb-item"><div class="sb-dot green"></div>SYSTEM AKTIV</div>
+  <div class="sb-item" id="sbTrupps"><div class="sb-dot green"></div>AS-TRUPPS: 0</div>
+  <div class="sb-item" id="sbAlarm"><div class="sb-dot green"></div>ALARM: KEINE</div>
+  <div class="sb-item">BW-WF · FÜHRUNGSSYSTEM · STAN 2024</div>
+  <div class="sb-item" style="margin-left:auto;border-right:none;" id="sbDate"></div>
+</div>
+
+<!-- ══ MODAL: NEUER TRUPP ════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="addTruppModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">Trupp anlegen</div>
+      <button class="close-btn" id="closeTruppModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="inp-row">
+        <div><div class="inp-lbl">Truppführer Nachname</div><input class="inp" id="tf-fn" placeholder="Nachname"></div>
+        <div><div class="inp-lbl">Truppführer Vorname</div><input class="inp" id="tf-vn" placeholder="Vorname"></div>
+      </div>
+      <div class="inp-row">
+        <div><div class="inp-lbl">Truppmann Nachname</div><input class="inp" id="tm-fn" placeholder="Nachname"></div>
+        <div><div class="inp-lbl">Truppmann Vorname</div><input class="inp" id="tm-vn" placeholder="Vorname"></div>
+      </div>
+      <div><div class="inp-lbl">Funkrufname</div><input class="inp" id="tf-funk" placeholder="z.B. AT 1/44 W1"></div>
+      <div><div class="inp-lbl">Anfangsdruck (Bar)</div><input class="inp" id="tf-druck" type="number" value="300" placeholder="300"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelTruppModal">Abbrechen</button>
+      <button class="btn primary" id="confirmTruppModal">▶ START &nbsp;<span id="truppCountdown" style="background:rgba(0,0,0,0.2);padding:1px 6px;font-size:12px;">20</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: NEUES PROTOKOLL ═════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="newProtoModal">
+  <div class="modal" style="width:520px;">
+    <div class="modal-hdr">
+      <div class="modal-title">Neues Protokoll</div>
+      <button class="close-btn" id="closeProtoModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div><div class="inp-lbl">Einsatzbezeichnung</div><input class="inp" id="np-bez" placeholder="z.B. Brand Halle 3, Technische Hilfeleistung..."></div>
+      <div class="inp-row">
+        <div>
+          <div class="inp-lbl">Einsatzart</div>
+          <select class="inp" id="np-art">
+            <option>Brand</option><option>Technische Hilfeleistung</option><option>Gefahrgut</option>
+            <option>Übung</option><option>Fehlalarm</option><option>Sonstiges</option>
+          </select>
+        </div>
+        <div><div class="inp-lbl">Alarmzeit</div><input class="inp" id="np-time" type="time"></div>
+      </div>
+      <div><div class="inp-lbl">Einsatzort</div><input class="inp" id="np-ort" placeholder="z.B. Halle 3, Gebäude 12, Außengelände Nord"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelProtoModal">Abbrechen</button>
+      <button class="btn primary" id="confirmProtoModal">Protokoll anlegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: NEUER EINSATZ ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="newAlarmModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">Einsatz erfassen</div>
+      <button class="close-btn" id="closeAlarmModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div><div class="inp-lbl">Einsatzbezeichnung</div><input class="inp" id="na-bez" placeholder="Kurzbeschreibung"></div>
+      <div class="inp-row">
+        <div><div class="inp-lbl">Priorität</div>
+          <select class="inp" id="na-prio"><option value="1">Prio 1 – Kritisch</option><option value="2">Prio 2 – Dringend</option><option value="3">Prio 3 – Normal</option></select>
+        </div>
+        <div><div class="inp-lbl">Art</div>
+          <select class="inp" id="na-art"><option>Brand</option><option>THW</option><option>Gefahrgut</option><option>Übung</option><option>Fehlalarm</option><option>Sonstiges</option></select>
+        </div>
+      </div>
+      <div><div class="inp-lbl">Ort</div><input class="inp" id="na-ort" placeholder="Einsatzort auf dem Gelände"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelAlarmModal">Abbrechen</button>
+      <button class="btn primary" id="confirmAlarmModal">Einsatz anlegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIRM DIALOGS ════════════════════════════════════════════════════════════ -->
+<div class="confirm-overlay" id="maydayOverlay">
+  <div class="confirm-box" style="border-top:3px solid var(--red);">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title" style="color:var(--red)">MAYDAY</div>
+    <div class="confirm-text" id="maydayText"></div>
+    <div class="confirm-btns">
+      <button class="btn" id="maydayCancel">Abbrechen</button>
+      <button class="btn primary" id="maydayConfirm">MAYDAY AUSLÖSEN</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="endOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">⏹</div>
+    <div class="confirm-title">EINSATZ BEENDEN</div>
+    <div class="confirm-text">Einsatz wirklich beenden? Nicht rückgängig zu machen.</div>
+    <div class="confirm-btns">
+      <button class="btn" id="endCancel">Abbrechen</button>
+      <button class="btn" style="border-color:var(--text-mid);color:var(--text)" id="endConfirm">BEENDEN</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="endAlarmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">✔</div>
+    <div class="confirm-title">EINSATZ ABSCHLIESSEN</div>
+    <div class="confirm-text">Einsatz als abgeschlossen markieren?</div>
+    <div class="confirm-btns">
+      <button class="btn" id="endAlarmCancel">Abbrechen</button>
+      <button class="btn primary" id="endAlarmConfirm">ABSCHLIESSEN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ═══════════════════════════════════════════════════════════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ════════════════════════════════════════════════════════════════════════════════
+let currentPage = 'dashboard';
+
+// AS
+let asTrupps = [];
+let asSelectedId = null;
+let asPanelState = 'none';
+let asSelDruck = null;
+let asDruckText = 'Druck auswählen';
+let asStatusText = 'Status auswählen';
+let asOrtText = 'Ort auswählen';
+let asCountdownInterval = null;
+let asCountdownSec = 20;
+
+// Protokolle
+let protokolle = [];
+let selectedProtoId = null;
+
+// Alarmierungen
+let alarmierungen = [];
+let pendingAlarmId = null;
+
+// Personal (vordefiniert)
+let personal = [];
+
+// Fahrzeuge
+let fahrzeuge = [];
+
+// ════════════════════════════════════════════════════════════════════════════════
+// CLOCK & DATE
+// ════════════════════════════════════════════════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('de-DE');
+  const ds = now.toLocaleDateString('de-DE', {weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('hdate').textContent = ds;
+  document.getElementById('sbDate').textContent = ds + '  ' + now.toLocaleTimeString('de-DE');
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ════════════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════════════════════════
+document.getElementById('menuToggle').addEventListener('click', () => {
+  document.getElementById('sidebarNav').classList.toggle('open');
+  document.getElementById('navOverlay').classList.toggle('open');
+});
+document.getElementById('navOverlay').addEventListener('click', closeNav);
+function closeNav() {
+  document.getElementById('sidebarNav').classList.remove('open');
+  document.getElementById('navOverlay').classList.remove('open');
+}
+
+document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  item.addEventListener('click', () => {
+    navigate(item.dataset.page);
+    closeNav();
+  });
+});
+
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item[data-page]').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  const labels = {dashboard:'Dashboard',atemschutz:'Atemschutz',protokoll:'Einsatzprotokoll',kraefte:'Kräfteübersicht',fahrzeuge:'Fahrzeuge',alarm:'Alarmierung'};
+  document.getElementById('currentModule').textContent = labels[page] || page.toUpperCase();
+  if (page === 'kraefte') renderKraefte('alle');
+  if (page === 'fahrzeuge') renderFahrzeuge();
+  if (page === 'alarm') renderAlarm();
+  if (page === 'protokoll') renderProtoList();
+  updateDashboard();
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const el = document.createElement('div');
+  el.className = 'toast' + (type==='warn'?' warn':type==='err'?' err':'');
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// INPUT DIALOG
+// ════════════════════════════════════════════════════════════════════════════════
+function inputDialog(title, placeholder, cb) {
+  const ov = document.createElement('div');
+  ov.className = 'inp-dialog-overlay';
+  ov.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border2);border-top:3px solid var(--red);padding:24px;width:380px;max-width:95vw;">
+    <div style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;">${title}</div>
+    <input id="__di" type="text" placeholder="${placeholder}"
+      style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--red);color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;outline:none;margin-bottom:14px;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="__dc" style="padding:8px 16px;border:1px solid var(--border2);background:none;color:var(--text-dim);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;">ABBRECHEN</button>
+      <button id="__dok" style="padding:8px 16px;border:none;background:var(--red);color:white;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;">OK</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  const inp = ov.querySelector('#__di');
+  inp.focus();
+  const done = val => { document.body.removeChild(ov); cb(val); };
+  ov.querySelector('#__dc').addEventListener('click', () => done(null));
+  ov.querySelector('#__dok').addEventListener('click', () => done(inp.value.trim()));
+  inp.addEventListener('keydown', e => { if(e.key==='Enter') done(inp.value.trim()); });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════════════════════════════════════
+function updateDashboard() {
+  const aktiveAS = asTrupps.filter(t=>t.active).length;
+  const aktiveAlarm = alarmierungen.filter(a=>a.status==='aktiv').length;
+  const bereit = personal.filter(p=>p.status==='bereit').length;
+
+  document.getElementById('dash-as-count').textContent = aktiveAS;
+  document.getElementById('dash-alarm-count').textContent = aktiveAlarm;
+  document.getElementById('dash-pers-count').textContent = bereit;
+  document.getElementById('asTruppLbl').textContent = aktiveAS;
+  document.getElementById('starkeLbl').textContent = bereit + ' / ' + personal.length;
+  document.getElementById('asBadge').textContent = aktiveAS;
+  document.getElementById('alarmBadge').textContent = aktiveAlarm;
+  document.getElementById('asBadge').className = 'nav-badge' + (aktiveAS>0?' active-badge':'');
+  document.getElementById('alarmBadge').className = 'nav-badge' + (aktiveAlarm>0?' active-badge':'');
+
+  // alarm indicator
+  const ind = document.getElementById('alarmIndicator');
+  if (aktiveAlarm > 0) { ind.className = 'alarm-indicator alert'; }
+  else { ind.className = 'alarm-indicator'; }
+
+  // lage text
+  if (aktiveAlarm > 0) {
+    document.getElementById('lageText').textContent = `EINSATZ AKTIV – ${aktiveAlarm} EINSATZ/EINSÄTZE LAUFEND`;
+    document.getElementById('lageText').style.color = 'var(--red)';
+  } else {
+    document.getElementById('lageText').textContent = 'BEREITSCHAFT – KEINE AKTIVEN EINSÄTZE';
+    document.getElementById('lageText').style.color = '';
+  }
+
+  // status bar
+  document.getElementById('sbTrupps').innerHTML = `<div class="sb-dot ${aktiveAS>0?'red':'green'}"></div>AS-TRUPPS: ${aktiveAS}`;
+  document.getElementById('sbAlarm').innerHTML = `<div class="sb-dot ${aktiveAlarm>0?'red':'green'}"></div>ALARM: ${aktiveAlarm>0?aktiveAlarm+' AKTIV':'KEINE'}`;
+
+  // proto list
+  const pl = document.getElementById('dash-proto-list');
+  if(protokolle.length === 0) {
+    pl.innerHTML = '<div class="dc-row"><span class="dc-row-label" style="color:var(--text-dim)">Keine Protokolle</span></div>';
+  } else {
+    pl.innerHTML = protokolle.slice(-3).reverse().map(p=>`
+      <div class="dc-row">
+        <span class="dc-row-label">${p.bez}</span>
+        <span class="dc-row-val ${p.status==='aktiv'?'crit':'ok'}">${p.status.toUpperCase()}</span>
+      </div>`).join('');
+  }
+
+  // fzg list
+  const fl = document.getElementById('dash-fzg-list');
+  if(fahrzeuge.length===0) {
+    fl.innerHTML = '<div class="dc-row"><span class="dc-row-label" style="color:var(--text-dim)">Keine Fahrzeuge eingetragen</span></div>';
+  } else {
+    fl.innerHTML = fahrzeuge.slice(0,4).map(f=>`
+      <div class="dc-row">
+        <span class="dc-row-label">${f.id}</span>
+        <span class="dc-row-val ${f.status==='bereit'?'ok':f.status==='wartung'?'warn':'crit'}">${f.status.toUpperCase()}</span>
+      </div>`).join('');
+  }
+}
+updateDashboard();
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FAHRZEUGE
+// ════════════════════════════════════════════════════════════════════════════════
+function renderFahrzeuge() {
+  const container = document.getElementById('fzgList');
+  if(fahrzeuge.length===0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🚒</div><div class="empty-label">Keine Fahrzeuge</div><div class="empty-sub">Fahrzeuge über "+ Fahrzeug" hinzufügen (Admin)</div></div>`;
+    return;
+  }
+  container.innerHTML = fahrzeuge.map(f => `
+    <div class="fzg-card">
+      <div class="fzg-indicator ${f.status==='wartung'?'warn':f.status==='einsatz'?'out':''}"></div>
+      <div class="fzg-info">
+        <div class="fzg-id">${f.id}</div>
+        <div class="fzg-name">${f.name}</div>
+        <div class="fzg-type">${f.type}</div>
+        <div class="fzg-specs">
+          <div class="fzg-spec"><strong>${f.besatzung||'—'}</strong>Besatzung</div>
+          ${f.tank&&f.tank!=='—'?`<div class="fzg-spec"><strong>${f.tank}</strong>Tank</div>`:''}
+          ${f.pumpe&&f.pumpe!=='—'?`<div class="fzg-spec"><strong>${f.pumpe}</strong>Pumpe</div>`:''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        <div class="fzg-status-badge ${f.status}">${f.status==='bereit'?'EINSATZBEREIT':f.status==='einsatz'?'IM EINSATZ':'IN WARTUNG'}</div>
+        <button onclick="openFzgStatusModal('${f.uid}')" style="padding:4px 10px;border:1px solid var(--blue);background:none;color:var(--blue2);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;">⚙ STATUS</button>
+        ${isAdmin ? `<button onclick="deleteFahrzeug('${f.uid}')" style="padding:4px 10px;border:1px solid var(--border2);background:none;color:var(--text-dim);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text-dim)'">🗑 LÖSCHEN</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function deleteFahrzeug(uid) {
+  requirePerm('fahrzeug_loeschen', () => {
+    fahrzeuge = fahrzeuge.filter(f=>f.uid!==uid);
+    renderFahrzeuge(); updateDashboard();
+    toast('Fahrzeug entfernt','warn');
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// KRÄFTE
+// ════════════════════════════════════════════════════════════════════════════════
+document.querySelectorAll('.kt-btn[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.kt-btn[data-filter]').forEach(b => b.classList.remove('active-btn'));
+    btn.classList.add('active-btn');
+    renderKraefte(btn.dataset.filter);
+  });
+});
+
+document.getElementById('addPersonBtn').addEventListener('click', () => {
+  requirePerm('person_erstellen', () => document.getElementById('addPersonModal').classList.add('open'));
+});
+
+function renderKraefte(filter) {
+  const list = filter==='alle' ? personal : personal.filter(p=>p.status===filter);
+  const grid = document.getElementById('kraefteGrid');
+  if(personal.length===0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">👥</div><div class="empty-label">Keine Kräfte eingetragen</div><div class="empty-sub">Über "+ Person" Personal hinzufügen (Admin)</div></div>`;
+    return;
+  }
+  if(list.length===0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:30px;text-align:center;color:var(--text-dim);font-size:13px;">Keine Einträge für diesen Filter</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(p=>`
+    <div class="person-card">
+      <div class="pc-status ${p.status}"></div>
+      <div class="pc-rank" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${p.rang}">${p.rang}</div>
+      <div class="pc-name">${p.name}</div>
+      <div class="pc-funk">${p.funk}</div>
+      <div class="pc-quals">
+        ${p.quals.map(q=>`<div class="pc-qual ${
+          q.includes('AS')||q.includes('Atemschutz')?'as':
+          q.includes('Maschinist')||q.includes('GW')?'gw':''
+        }" title="${q}">${q.length>12?q.slice(0,11)+'…':q}</div>`).join('')}
+      </div>
+      <div class="pc-time" style="margin-top:8px;">${p.status==='bereit'?'<span style="color:var(--green)">● EINSATZBEREIT</span>':p.status==='pause'?'<span style="color:var(--yellow)">● PAUSE</span>':'<span style="color:var(--red)">● IM EINSATZ</span>'}</div>
+      <div class="pc-actions">
+        <button class="pc-action-btn s-bereit" onclick="openStatusModal(${p.id})">⚙ Status</button>
+      ${isAdmin ? `<button class="pc-action-btn del-btn" onclick="deletePerson(${p.id})">🗑</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function deletePerson(id) {
+  requirePerm('person_loeschen', () => {
+    personal = personal.filter(p=>p.id!==id);
+    renderKraefte(document.querySelector('.kt-btn.active-btn')?.dataset.filter||'alle');
+    updateDashboard();
+    toast('Person entfernt','warn');
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// ALARMIERUNG
+// ════════════════════════════════════════════════════════════════════════════════
+document.getElementById('newAlarmBtn').addEventListener('click', () => {
+  requirePerm('alarm_anlegen', () => document.getElementById('newAlarmModal').classList.add('open'));
+});
+document.getElementById('closeAlarmModal').addEventListener('click', () => { document.getElementById('newAlarmModal').classList.remove('open'); });
+document.getElementById('cancelAlarmModal').addEventListener('click', () => { document.getElementById('newAlarmModal').classList.remove('open'); });
+document.getElementById('confirmAlarmModal').addEventListener('click', () => {
+  const bez = document.getElementById('na-bez').value.trim();
+  if(!bez) { toast('Bezeichnung eingeben','warn'); return; }
+  const prio = parseInt(document.getElementById('na-prio').value);
+  const art = document.getElementById('na-art').value;
+  const ort = document.getElementById('na-ort').value.trim();
+  const now = new Date();
+  alarmierungen.push({
+    id: 'E-' + now.getFullYear() + '-' + String(alarmierungen.length+1).padStart(3,'0'),
+    bez, prio, art, ort, status:'aktiv',
+    zeit: now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),
+    elapsed: 0,
+  });
+  document.getElementById('newAlarmModal').classList.remove('open');
+  document.getElementById('na-bez').value=''; document.getElementById('na-ort').value='';
+  renderAlarm(); updateDashboard();
+  toast('Einsatz angelegt','ok');
+});
+
+// Einsatz-Timer
+setInterval(() => {
+  alarmierungen.filter(a=>a.status==='aktiv').forEach(a=>a.elapsed++);
+  if(currentPage==='alarm') renderAlarm();
+  updateDashboard();
+}, 1000);
+
+function renderAlarm() {
+  const cards = document.getElementById('alarmCards');
+  if(alarmierungen.length===0) {
+    cards.innerHTML = '<div class="empty-state" style="height:300px;"><div class="empty-icon">🚨</div><div class="empty-label">Keine Einsätze</div><div class="empty-sub">Neue Einsätze über "+ Neuer Einsatz" anlegen</div></div>';
+  } else {
+    cards.innerHTML = alarmierungen.map(a=>`
+      <div class="alarm-card ${a.status==='aktiv'?'aktiv':''}" style="margin-bottom:8px;">
+        <div class="ac-header">
+          <div class="ac-prio p${a.prio}">${a.prio}</div>
+          <div class="ac-id">${a.id}</div>
+          <div class="ac-title">${a.bez}</div>
+          <span class="proto-status ${a.status==='aktiv'?'aktiv':'abg'}">${a.status==='aktiv'?'AKTIV':'ABG.'}</span>
+          <div class="ac-time">${a.zeit} &nbsp;|&nbsp; ${fmt(a.elapsed)}</div>
+        </div>
+        <div class="ac-details">
+          <div class="ac-det">📍 ${a.ort||'—'}</div>
+          <div class="ac-det">🔥 ${a.art}</div>
+        </div>
+        ${a.status==='aktiv'?`<div style="margin-top:10px;display:flex;gap:6px;">
+          <button class="pf-btn" onclick="openEndAlarm('${a.id}')">✔ Abschliessen</button>
+          <button class="pf-btn" onclick="navigate('protokoll')">📋 Protokoll</button>
+        </div>`:''}
+      </div>`).join('');
+  }
+  const aktiv = alarmierungen.filter(a=>a.status==='aktiv').length;
+  const abg = alarmierungen.filter(a=>a.status==='abg').length;
+  document.getElementById('statGes').textContent = alarmierungen.length;
+  document.getElementById('statAktiv').textContent = aktiv;
+  document.getElementById('statAbg').textContent = abg;
+  // arten
+  const arten = {};
+  alarmierungen.forEach(a=>{ arten[a.art]=(arten[a.art]||0)+1; });
+  document.getElementById('alarmTypes').innerHTML = Object.entries(arten).map(([k,v])=>`
+    <div class="dc-row"><span class="dc-row-label">${k}</span><span class="dc-row-val">${v}</span></div>`).join('');
+}
+
+function openEndAlarm(id) {
+  pendingAlarmId = id;
+  document.getElementById('endAlarmOverlay').classList.add('open');
+}
+document.getElementById('endAlarmCancel').addEventListener('click',()=>{ document.getElementById('endAlarmOverlay').classList.remove('open'); });
+document.getElementById('endAlarmConfirm').addEventListener('click',()=>{
+  const a = alarmierungen.find(x=>x.id===pendingAlarmId);
+  if(a) { a.status='abg'; toast('Einsatz abgeschlossen','ok'); }
+  document.getElementById('endAlarmOverlay').classList.remove('open');
+  renderAlarm(); updateDashboard();
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// EINSATZPROTOKOLL
+// ════════════════════════════════════════════════════════════════════════════════
+document.getElementById('newProtoBtn').addEventListener('click', () => {
+  requirePerm('protokoll_anlegen', () => { const now = new Date(); document.getElementById('np-time').value = now.toTimeString().slice(0,5); document.getElementById('newProtoModal').classList.add('open'); });
+});
+document.getElementById('closeProtoModal').addEventListener('click', () => document.getElementById('newProtoModal').classList.remove('open'));
+document.getElementById('cancelProtoModal').addEventListener('click', () => document.getElementById('newProtoModal').classList.remove('open'));
+document.getElementById('confirmProtoModal').addEventListener('click', () => {
+  const bez = document.getElementById('np-bez').value.trim();
+  if(!bez) { toast('Bezeichnung eingeben','warn'); return; }
+  const now = new Date();
+  const id = 'P-' + now.getFullYear() + '-' + String(protokolle.length+1).padStart(3,'0');
+  const proto = {
+    id, bez,
+    art: document.getElementById('np-art').value,
+    alarmzeit: document.getElementById('np-time').value,
+    ort: document.getElementById('np-ort').value.trim(),
+    datum: now.toLocaleDateString('de-DE'),
+    status: 'aktiv',
+    einsatzleiter: '',
+    fahrzeuge: [],
+    mannschaft: '',
+    massnahmen: '',
+    schadensbeschreibung: '',
+    ereignisse: [],
+    beginn: new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),
+    ende: '',
+  };
+  // auto-add alarm event
+  proto.ereignisse.push({ time: proto.beginn, text: 'Alarmierung · '+proto.art, type:'alarm' });
+  protokolle.push(proto);
+  selectedProtoId = id;
+  document.getElementById('newProtoModal').classList.remove('open');
+  ['np-bez','np-ort'].forEach(i=>document.getElementById(i).value='');
+  renderProtoList();
+  renderProtoDetail(id);
+  updateDashboard();
+  toast('Protokoll angelegt');
+});
+
+document.getElementById('protoSearch').addEventListener('input', function() {
+  renderProtoList(this.value.toLowerCase());
+});
+
+function renderProtoList(filter='') {
+  const list = document.getElementById('protoList');
+  const filtered = protokolle.filter(p => p.bez.toLowerCase().includes(filter) || p.id.toLowerCase().includes(filter));
+  if(filtered.length===0) {
+    list.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--text-dim);text-align:center;">Keine Protokolle</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(p=>`
+    <div class="proto-item ${p.id===selectedProtoId?'active':''}" data-pid="${p.id}">
+      <div class="pi-id">${p.id}</div>
+      <div class="pi-title">${p.bez} <span class="proto-status ${p.status==='aktiv'?'aktiv':'abg'}">${p.status==='aktiv'?'AKTIV':'ABG.'}</span></div>
+      <div class="pi-meta">${p.datum} · ${p.alarmzeit} · ${p.art}</div>
+    </div>`).join('');
+  list.querySelectorAll('.proto-item').forEach(item=>{
+    item.addEventListener('click', ()=>{ selectedProtoId=item.dataset.pid; renderProtoList(filter); renderProtoDetail(selectedProtoId); });
+  });
+}
+
+function renderProtoDetail(id) {
+  const p = protokolle.find(x=>x.id===id);
+  if(!p) return;
+  const main = document.getElementById('protoMain');
+  main.innerHTML = `
+    <div class="proto-form" id="protoFormContent">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--red);">${p.id}</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;">${p.bez}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${p.datum} · ${p.art} · <span class="proto-status ${p.status==='aktiv'?'aktiv':'abg'}" style="margin-left:0;">${p.status==='aktiv'?'AKTIV':'ABGESCHLOSSEN'}</span></div>
+        </div>
+      </div>
+
+      <!-- Basisdaten -->
+      <div class="form-section">
+        <div class="form-section-title">Einsatzdaten</div>
+        <div class="form-grid">
+          <div class="form-group"><div class="form-label">Alarmzeit</div><input class="form-input" data-field="alarmzeit" value="${p.alarmzeit}"></div>
+          <div class="form-group"><div class="form-label">Einsatzende</div><input class="form-input" data-field="ende" value="${p.ende}" placeholder="—"></div>
+          <div class="form-group"><div class="form-label">Einsatzort</div><input class="form-input" data-field="ort" value="${p.ort}"></div>
+          <div class="form-group"><div class="form-label">Einsatzleiter</div><input class="form-input" data-field="einsatzleiter" value="${p.einsatzleiter}" placeholder="Name, Dienstgrad"></div>
+        </div>
+        <div class="form-grid full" style="margin-top:10px;">
+          <div class="form-group"><div class="form-label">Eingesetzte Fahrzeuge</div><input class="form-input" data-field="fahrzeuge" value="${p.fahrzeuge.join(', ')}" placeholder="LF 20/16, TLF 3000 ..."></div>
+          <div class="form-group" style="margin-top:8px;"><div class="form-label">Mannschaftsstärke</div><input class="form-input" data-field="mannschaft" value="${p.mannschaft}" placeholder="z.B. 1/8"></div>
+        </div>
+      </div>
+
+      <!-- Schadensbeschreibung -->
+      <div class="form-section">
+        <div class="form-section-title">Schadensbeschreibung</div>
+        <div class="form-group">
+          <textarea class="form-textarea" data-field="schadensbeschreibung" placeholder="Beschreibung der Lage beim Eintreffen, Art des Schadens ...">${p.schadensbeschreibung}</textarea>
+        </div>
+      </div>
+
+      <!-- Massnahmen -->
+      <div class="form-section">
+        <div class="form-section-title">Durchgeführte Maßnahmen</div>
+        <div class="form-group">
+          <textarea class="form-textarea" data-field="massnahmen" placeholder="Eingesetzte Maßnahmen, Löschmittel, technische Hilfeleistung ...">${p.massnahmen}</textarea>
+        </div>
+      </div>
+
+      <!-- Ereignisprotokoll -->
+      <div class="form-section">
+        <div class="form-section-title">Ereignisprotokoll / Timeline</div>
+        <div class="timeline" id="protoTimeline">
+          ${p.ereignisse.map(e=>`
+            <div class="tl-entry">
+              <div class="tl-dot"></div>
+              <div class="tl-content">
+                <div class="tl-time">${e.time} <span class="tl-type ${e.type}">${e.type.toUpperCase()}</span></div>
+                <div class="tl-text">${e.text}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+        <div class="add-tl-row">
+          <input class="add-tl-input" id="tlInput" placeholder="Ereignis eingeben...">
+          <select class="add-tl-input" id="tlType" style="width:100px;flex:none;">
+            <option value="info">INFO</option>
+            <option value="alarm">ALARM</option>
+            <option value="ok">OK</option>
+          </select>
+          <button class="add-tl-btn" id="addTlBtn">+ EINTRAG</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="proto-footer">
+      <button class="pf-btn primary" id="saveProtoBtn">💾 Speichern</button>
+      ${p.status==='aktiv'?`<button class="pf-btn" id="closeProtoBtn">✔ Abschliessen</button>`:''}
+      <button class="pf-btn danger" id="deleteProtoBtn">🗑 Löschen</button>
+    </div>`;
+
+  // auto-save on input
+  main.querySelectorAll('[data-field]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const field = el.dataset.field;
+      if(field==='fahrzeuge') p[field] = el.value.split(',').map(s=>s.trim()).filter(Boolean);
+      else p[field] = el.value;
+    });
+  });
+
+  // timeline add
+  document.getElementById('addTlBtn').addEventListener('click', ()=>{
+    const txt = document.getElementById('tlInput').value.trim();
+    if(!txt) return;
+    const type = document.getElementById('tlType').value;
+    const time = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    p.ereignisse.push({time,text:txt,type});
+    document.getElementById('tlInput').value='';
+    renderProtoDetail(id);
+  });
+
+  document.getElementById('saveProtoBtn').addEventListener('click', ()=>{
+    updateDashboard(); toast('Protokoll gespeichert');
+  });
+
+  if(p.status==='aktiv') {
+    document.getElementById('closeProtoBtn').addEventListener('click', ()=>{
+      p.status='abg';
+      p.ende = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+      p.ereignisse.push({time:p.ende,text:'Einsatz abgeschlossen',type:'ok'});
+      renderProtoList(); renderProtoDetail(id); updateDashboard();
+      toast('Protokoll abgeschlossen','ok');
+    });
+  }
+
+  document.getElementById('deleteProtoBtn').addEventListener('click', ()=>{
+    if(confirm('Protokoll wirklich löschen?')) {
+      protokolle = protokolle.filter(x=>x.id!==id);
+      selectedProtoId=null;
+      renderProtoList(); updateDashboard();
+      document.getElementById('protoMain').innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-label">Protokoll auswählen</div><div class="empty-sub">oder neues Protokoll anlegen</div></div>`;
+      toast('Protokoll gelöscht','warn');
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// ATEMSCHUTZ
+// ════════════════════════════════════════════════════════════════════════════════
+function fmt(sec) {
+  return String(Math.floor(sec/60)).padStart(2,'0') + ':' + String(sec%60).padStart(2,'0');
+}
+
+// Timer
+setInterval(() => {
+  asTrupps.forEach(t=>{ if(t.active){ t.elapsed++; t.druck=Math.max(0,t.anfangsDruck-Math.floor(t.elapsed/20)); } });
+  renderAsSidebar();
+  if(asSelectedId!==null && currentPage==='atemschutz') renderAsDetail();
+  updateDashboard();
+}, 1000);
+
+// Sidebar
+function renderAsSidebar() {
+  const list = document.getElementById('asTruppList');
+  if(!list) return;
+  list.innerHTML = '';
+  asTrupps.forEach(t=>{
+    const li = document.createElement('li');
+    li.className = 'as-trupp-item' + (t.id===asSelectedId?' active':'');
+    const bc = t.druck<100?'crit':t.druck<160?'warn':'ok';
+    li.innerHTML=`<div class="t-num">${t.nummer}.</div>
+      <div><div class="t-name">${t.nummer}. Trupp</div><div class="t-sub">${t.funk}</div></div>
+      <div class="t-badge ${bc}">${t.druck}</div>`;
+    li.addEventListener('click',()=>selectAsTrupp(t.id));
+    list.appendChild(li);
+  });
+}
+
+function selectAsTrupp(id) {
+  if(asSelectedId!==id) {
+    asPanelState='none'; asSelDruck=null;
+    asDruckText='Druck auswählen'; asStatusText='Status auswählen'; asOrtText='Ort auswählen';
+    document.getElementById('asContent').innerHTML='';
+  }
+  asSelectedId=id;
+  renderAsSidebar(); renderAsDetail();
+}
+
+// Add Trupp Modal
+document.getElementById('addTruppBtn').addEventListener('click', openAddTruppModal);
+document.getElementById('closeTruppModal').addEventListener('click', closeAddTruppModal);
+document.getElementById('cancelTruppModal').addEventListener('click', closeAddTruppModal);
+document.getElementById('confirmTruppModal').addEventListener('click', confirmAddTrupp);
+
+function openAddTruppModal() {
+  document.getElementById('addTruppModal').classList.add('open');
+  asCountdownSec=20; document.getElementById('truppCountdown').textContent=20;
+  clearInterval(asCountdownInterval);
+  asCountdownInterval=setInterval(()=>{
+    asCountdownSec--;
+    document.getElementById('truppCountdown').textContent=asCountdownSec;
+    if(asCountdownSec<=0){clearInterval(asCountdownInterval);confirmAddTrupp();}
+  },1000);
+}
+function closeAddTruppModal() {
+  document.getElementById('addTruppModal').classList.remove('open');
+  clearInterval(asCountdownInterval);
+}
+function confirmAddTrupp() {
+  const fn=document.getElementById('tf-fn').value||'Unbekannt';
+  const fv=document.getElementById('tf-vn').value||'';
+  const mn=document.getElementById('tm-fn').value||'Unbekannt';
+  const mv=document.getElementById('tm-vn').value||'';
+  const funk=document.getElementById('tf-funk').value||'AT';
+  const druck=parseInt(document.getElementById('tf-druck').value)||300;
+  const t={
+    id:Date.now(), nummer:asTrupps.length+1,
+    fuehrer:fn+(fv?', '+fv:''), mann:mn+(mv?', '+mv:''),
+    funk, anfangsDruck:druck, druck, elapsed:0, active:true,
+    meldungen:[], einsatzOrt:'', startTime:new Date().toLocaleTimeString('de-DE'),
+  };
+  asTrupps.push(t);
+  closeAddTruppModal();
+  ['tf-fn','tf-vn','tm-fn','tm-vn','tf-funk'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  document.getElementById('tf-druck').value='300';
+  selectAsTrupp(t.id); renderAsSidebar(); updateDashboard();
+  toast(`${t.nummer}. Trupp gestartet`);
+}
+
+// Detail
+function renderAsDetail() {
+  const t=asTrupps.find(x=>x.id===asSelectedId);
+  if(!t) return;
+  const content=document.getElementById('asContent');
+
+  const gesamtSek=Math.round((t.anfangsDruck-40)*20);
+  const restSek=Math.max(0,gesamtSek-t.elapsed);
+  const naechsteSek=Math.max(0,5*60-(t.elapsed%(5*60)));
+
+  let gc='#28b858';
+  if(t.druck<100) gc='#d42020';
+  else if(t.druck<160) gc='#e8b820';
+
+  const pct=Math.min(1,t.druck/t.anfangsDruck);
+  const ang=-180+pct*180;
+  const rad=ang*Math.PI/180;
+  const nx=75+55*Math.cos(rad), ny=75+55*Math.sin(rad);
+
+  if(!document.getElementById('asDetailCol')) {
+    content.innerHTML=`
+      <div class="trupp-detail-col" id="asDetailCol"></div>
+      <div class="as-panel" id="asMeldungPanel">
+        <div class="panel-hdr">
+          <div class="panel-title">Meldung</div>
+          <button class="close-btn" id="closeMeldungBtn">✕</button>
+        </div>
+        <div class="select-field" id="asDruckField"><span class="sf-icon">🔴</span><span class="sf-text" id="asDruckTxt">Druck auswählen</span></div>
+        <div class="select-field" id="asStatusField"><span class="sf-icon">ℹ️</span><span class="sf-text" id="asStatusTxt">Status auswählen</span></div>
+        <div class="select-field" id="asOrtField"><span class="sf-icon">📍</span><span class="sf-text" id="asOrtTxt">Ort auswählen</span></div>
+        <div class="media-row">
+          <button class="media-btn">🎙 Aufnahme</button>
+          <button class="media-btn">📷 Foto</button>
+        </div>
+        <button class="save-btn" id="asSaveBtn">Speichern ✔</button>
+      </div>
+      <div class="as-panel" id="asDruckPanel">
+        <div class="panel-hdr">
+          <div class="panel-title">Druck</div>
+          <button class="close-btn" id="closeDruckBtn">✕</button>
+        </div>
+        <div class="druck-grid" id="asDruckGrid"></div>
+        <div style="margin-top:10px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;color:var(--text-dim);margin-bottom:5px;">DRUCK EINGEBEN</div>
+          <input class="druck-input" type="number" id="asDruckInput" placeholder="—">
+        </div>
+      </div>
+
+      <div class="confirm-overlay" id="asMaydayOverlay">
+        <div class="confirm-box" style="border-top:3px solid var(--red);">
+          <div class="confirm-icon">⚠️</div>
+          <div class="confirm-title" style="color:var(--red)">MAYDAY</div>
+          <div class="confirm-text" id="asMaydayText"></div>
+          <div class="confirm-btns">
+            <button class="btn" id="asMaydayCancel">Abbrechen</button>
+            <button class="btn primary" id="asMaydayOk">AUSLÖSEN</button>
+          </div>
+        </div>
+      </div>
+      <div class="confirm-overlay" id="asEndOverlay">
+        <div class="confirm-box">
+          <div class="confirm-icon">⏹</div>
+          <div class="confirm-title">BEENDEN</div>
+          <div class="confirm-text">Trupp-Einsatz wirklich beenden?</div>
+          <div class="confirm-btns">
+            <button class="btn" id="asEndCancel">Abbrechen</button>
+            <button class="btn" style="border-color:var(--text-mid);color:var(--text)" id="asEndOk">BEENDEN</button>
+          </div>
+        </div>
+      </div>`;
+    attachAsEvents(t.id);
+  }
+
+  // Update detail col
+  document.getElementById('asDetailCol').innerHTML=`
+    <div class="td-header">
+      <div><div class="td-title">${t.nummer}. Trupp</div><div class="td-funk">${t.funk}</div></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);text-align:right;">${t.startTime}</div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge">
+        <svg viewBox="0 0 150 150">
+          <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#d42020"/><stop offset="40%" stop-color="#e8b820"/><stop offset="70%" stop-color="#28b858"/>
+          </linearGradient></defs>
+          <path d="M 15 75 A 60 60 0 0 1 135 75" fill="none" stroke="#252b3a" stroke-width="11" stroke-linecap="round"/>
+          <path d="M 15 75 A 60 60 0 0 1 135 75" fill="none" stroke="url(#gg)" stroke-width="11" stroke-linecap="round"
+            stroke-dasharray="${pct*188.5} 188.5"/>
+          <line x1="75" y1="75" x2="${nx}" y2="${ny}" stroke="${gc}" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="75" cy="75" r="5" fill="${gc}"/>
+        </svg>
+        <div class="gauge-val" style="color:${gc}">${t.druck}</div>
+      </div>
+      <div class="gauge-lbl">Druck · Bar</div>
+    </div>
+    <div class="stat-rows">
+      <div class="stat-row"><span class="stat-lbl">⏱ Einsatzzeit</span><span class="stat-val">${fmt(t.elapsed)}</span></div>
+      <div class="stat-row"><span class="stat-lbl">⏳ Zeit bis Ende</span><span class="stat-val ${restSek<300?'crit':restSek<600?'warn':''}">${fmt(restSek)}</span></div>
+      <div class="stat-row"><span class="stat-lbl">📡 Nächste Abfrage</span><span class="stat-val ${naechsteSek<60?'warn':''}">${fmt(naechsteSek)}</span></div>
+    </div>
+    ${t.einsatzOrt?`<div style="padding:7px 10px;background:var(--surface);border:1px solid var(--border);font-size:11px;color:var(--text-dim);margin-bottom:10px;">📍 ${t.einsatzOrt}</div>`:''}
+    <div class="action-btns">
+      <button class="action-btn" id="asBtnMeldung">📋 Meldung eintragen</button>
+      <button class="action-btn mayday" id="asBtnMayday">⚠️ MAYDAY</button>
+      <button class="action-btn" id="asBtnEnd" style="border-color:var(--text-dim);">⏹ Einsatz beenden</button>
+    </div>
+    ${t.meldungen.length>0?`<div style="margin-top:10px;"><div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px;">MELDUNGEN</div>
+      <div class="meldungen-list">${t.meldungen.map(m=>`<div class="meldung-item"><span class="meldung-time">${m.time}</span><span>${m.text}</span></div>`).join('')}</div></div>`:''}
+  `;
+
+  document.getElementById('asBtnMeldung').onclick = ()=>openAsMeldung();
+  document.getElementById('asBtnMayday').onclick = ()=>{
+    document.getElementById('asMaydayText').textContent=`MAYDAY für ${t.nummer}. Trupp (${t.funk})?`;
+    document.getElementById('asMaydayOverlay').classList.add('open');
+  };
+  document.getElementById('asBtnEnd').onclick = ()=>{ document.getElementById('asEndOverlay').classList.add('open'); };
+
+  // sync panels
+  document.getElementById('asMeldungPanel').classList.toggle('open', asPanelState==='meldung');
+  document.getElementById('asDruckPanel').classList.toggle('open', asPanelState==='druck');
+  if(asPanelState!=='none') {
+    document.getElementById('asDruckTxt').textContent=asDruckText;
+    document.getElementById('asStatusTxt').textContent=asStatusText;
+    document.getElementById('asOrtTxt').textContent=asOrtText;
+    buildAsDruckGrid(t.id);
+  }
+}
+
+function attachAsEvents(truppId) {
+  document.getElementById('closeMeldungBtn').onclick = ()=>{asPanelState='none';syncAsPanels();};
+  document.getElementById('closeDruckBtn').onclick = ()=>{asPanelState='meldung';syncAsPanels();};
+  document.getElementById('asDruckField').onclick = ()=>{asPanelState='druck';syncAsPanels();buildAsDruckGrid(asSelectedId);};
+  document.getElementById('asStatusField').onclick = ()=>{
+    inputDialog('Status eingeben','z.B. Feuer gefunden, Rückzug, Lage erkundet',val=>{
+      if(val){asStatusText=val;const el=document.getElementById('asStatusTxt');if(el)el.textContent=val;const sf=document.getElementById('asStatusField');if(sf)sf.classList.add('filled');}
+    });
+  };
+  document.getElementById('asOrtField').onclick = ()=>{
+    inputDialog('Einsatzort eingeben','z.B. 2. OG, Halle Nord',val=>{
+      if(val){asOrtText=val;const t=asTrupps.find(x=>x.id===asSelectedId);if(t)t.einsatzOrt=val;const el=document.getElementById('asOrtTxt');if(el)el.textContent=val;const sf=document.getElementById('asOrtField');if(sf)sf.classList.add('filled');}
+    });
+  };
+  document.getElementById('asDruckInput').oninput = function(){
+    const v=parseInt(this.value);
+    if(!isNaN(v)&&v>0){asSelDruck=v;asDruckText=v+' Bar';const el=document.getElementById('asDruckTxt');if(el)el.textContent=asDruckText;buildAsDruckGrid(asSelectedId);}
+  };
+  document.getElementById('asSaveBtn').onclick = ()=>{
+    const t=asTrupps.find(x=>x.id===asSelectedId);if(!t)return;
+    const parts=[];
+    if(asDruckText!=='Druck auswählen'){parts.push(asDruckText);if(asSelDruck!==null)t.druck=asSelDruck;}
+    if(asStatusText!=='Status auswählen')parts.push(asStatusText);
+    if(asOrtText!=='Ort auswählen'){parts.push('📍 '+asOrtText);t.einsatzOrt=asOrtText;}
+    if(parts.length===0){toast('Bitte Wert auswählen','warn');return;}
+    t.meldungen.unshift({time:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),text:parts.join(' · ')});
+    asPanelState='none';asSelDruck=null;asDruckText='Druck auswählen';asStatusText='Status auswählen';asOrtText='Ort auswählen';
+    renderAsDetail();toast('Meldung gespeichert');
+  };
+  document.getElementById('asMaydayCancel').onclick = ()=>document.getElementById('asMaydayOverlay').classList.remove('open');
+  document.getElementById('asMaydayOk').onclick = ()=>{
+    const t=asTrupps.find(x=>x.id===asSelectedId);
+    if(t)t.meldungen.unshift({time:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),text:'🔴 MAYDAY AUSGELÖST'});
+    document.getElementById('asMaydayOverlay').classList.remove('open');
+    renderAsDetail();toast('⚠️ MAYDAY ausgelöst!','err');
+  };
+  document.getElementById('asEndCancel').onclick = ()=>document.getElementById('asEndOverlay').classList.remove('open');
+  document.getElementById('asEndOk').onclick = ()=>{
+    asTrupps=asTrupps.filter(t=>t.id!==asSelectedId);
+    asTrupps.forEach((t,i)=>t.nummer=i+1);
+    asSelectedId=null; asPanelState='none';
+    document.getElementById('asEndOverlay').classList.remove('open');
+    document.getElementById('asContent').innerHTML=`<div class="empty-state"><div class="empty-icon">😷</div><div class="empty-label">Kein Trupp ausgewählt</div><div class="empty-sub">Trupp auswählen oder neuen Trupp anlegen</div></div>`;
+    renderAsSidebar();updateDashboard();toast('Einsatz beendet');
+  };
+}
+
+function openAsMeldung() {
+  asSelDruck=null;asDruckText='Druck auswählen';asStatusText='Status auswählen';asOrtText='Ort auswählen';
+  asPanelState='meldung'; syncAsPanels();
+  ['asDruckField','asStatusField','asOrtField'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('filled');});
+  if(document.getElementById('asDruckTxt'))document.getElementById('asDruckTxt').textContent='Druck auswählen';
+  if(document.getElementById('asStatusTxt'))document.getElementById('asStatusTxt').textContent='Status auswählen';
+  if(document.getElementById('asOrtTxt'))document.getElementById('asOrtTxt').textContent='Ort auswählen';
+}
+
+function syncAsPanels() {
+  const mp=document.getElementById('asMeldungPanel'), dp=document.getElementById('asDruckPanel');
+  if(!mp||!dp) return;
+  mp.classList.toggle('open',asPanelState==='meldung');
+  dp.classList.toggle('open',asPanelState==='druck');
+}
+
+function buildAsDruckGrid(truppId) {
+  const grid=document.getElementById('asDruckGrid');
+  if(!grid)return;
+  const vals=[280,270,260,250,240,230,220,210,200,190,180,170,160,150,140,130,120,110,100,90,80,70,60,50];
+  grid.innerHTML=vals.map(v=>`<div class="druck-cell ${asSelDruck===v?'sel':''}" data-v="${v}">${v}</div>`).join('');
+  grid.querySelectorAll('.druck-cell').forEach(c=>{
+    c.addEventListener('click',()=>{
+      asSelDruck=parseInt(c.dataset.v);asDruckText=asSelDruck+' Bar';
+      const ft=document.getElementById('asDruckTxt');if(ft)ft.textContent=asDruckText;
+      const df=document.getElementById('asDruckField');if(df)df.classList.add('filled');
+      const inp=document.getElementById('asDruckInput');if(inp)inp.value=asSelDruck;
+      buildAsDruckGrid(truppId);
+    });
+  });
+}
+</script>
+<!-- ══ PERMISSIONS PANEL ════════════════════════════════════════════════════════ -->
+<div class="perm-panel" id="permPanel" style="display:none;">
+  <div class="perm-panel-hdr">⚙ BERECHTIGUNGEN</div>
+  <div class="perm-panel-sub">Als Admin Funktionen für alle freigeben oder sperren.</div>
+  <div id="permList"></div>
+</div>
+
+<!-- ══ ADMIN LOCK OVERLAY ══════════════════════════════════════════════════════ -->
+<div class="admin-lock" id="adminLockOverlay" style="display:none;">
+  <div class="lock-box">
+    <div class="lock-icon">🔐</div>
+    <div class="lock-title">Admin-Zugang</div>
+    <div class="lock-sub" id="lockSubText">Zugangscode eingeben um Admin-Modus zu aktivieren</div>
+    <input class="lock-input" type="password" id="adminCodeInput" placeholder="••••••••••••••••" maxlength="30">
+    <button class="lock-btn" id="adminCodeSubmit">ZUGANG BESTÄTIGEN</button>
+    <div class="lock-error" id="lockError">Falscher Zugangscode. Zugang verweigert.</div>
+    <button style="margin-top:14px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;" id="lockCancelBtn">ABBRECHEN</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: STATUS ÄNDERN ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="statusModal">
+  <div class="modal" style="width:380px;">
+    <div class="modal-hdr">
+      <div class="modal-title">Status ändern</div>
+      <button class="close-btn" id="closeStatusModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:14px;color:var(--text-mid);margin-bottom:4px;">Person: <strong id="statusModalName" style="color:var(--text);"></strong></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+        <button class="status-opt-btn" data-status="bereit" style="padding:14px;border:1px solid var(--green);background:rgba(40,184,88,0.08);color:var(--green);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:3px;text-align:left;display:flex;align-items:center;gap:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green-glow);display:inline-block;"></span> EINSATZBEREIT
+        </button>
+        <button class="status-opt-btn" data-status="einsatz" style="padding:14px;border:1px solid var(--red);background:rgba(212,32,32,0.08);color:var(--red);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:3px;text-align:left;display:flex;align-items:center;gap:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red-glow);display:inline-block;animation:pulse 1.2s infinite;"></span> IM EINSATZ
+        </button>
+        <button class="status-opt-btn" data-status="pause" style="padding:14px;border:1px solid var(--yellow);background:rgba(232,184,32,0.08);color:var(--yellow);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:3px;text-align:left;display:flex;align-items:center;gap:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--yellow);display:inline-block;"></span> PAUSE
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: EINSATZ-ZUWEISUNG ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="einsatzZuweisModal">
+  <div class="modal" style="width:520px;">
+    <div class="modal-hdr">
+      <div class="modal-title">🚒 Einsatz-Zuweisung</div>
+      <button class="close-btn" id="closeEinsatzModal">✕</button>
+    </div>
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--border);">
+      <button id="einsatzTabPersonen" style="flex:1;padding:12px;background:none;border:none;border-bottom:2px solid var(--red);color:var(--text);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;transition:all 0.15s;">👥 PERSONEN</button>
+      <button id="einsatzTabFahrzeuge" style="flex:1;padding:12px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-dim);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;transition:all 0.15s;">🚒 FAHRZEUGE</button>
+    </div>
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-dim);">
+      Auswählen und bestätigen – Status wird automatisch auf <span style="color:var(--red);">IM EINSATZ</span> gesetzt.
+    </div>
+    <div id="einsatzPersonList" style="max-height:340px;overflow-y:auto;"></div>
+    <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);">
+      <div style="font-size:11px;color:var(--text-dim);">Ausgewählt: <span id="einsatzSelectedCount" style="color:var(--text);font-weight:600;">0 Person(en) · 0 Fahrzeug(e)</span></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="einsatzAlleZurueck" style="font-size:12px;">↺ Zurücksetzen</button>
+        <button class="btn primary" id="einsatzBestaetigen" style="font-size:12px;">✔ Zuweisen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: FAHRZEUG STATUS ═════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="fzgStatusModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-hdr">
+      <div class="modal-title">Fahrzeug-Status</div>
+      <button class="close-btn" id="closeFzgStatusModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-mid);margin-bottom:4px;">Fahrzeug: <strong id="fzgStatusModalName" style="color:var(--text);"></strong></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+        <button class="fzg-status-opt-btn" data-status="bereit" style="padding:13px;border:1px solid var(--green);background:rgba(40,184,88,0.08);color:var(--green);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:3px;text-align:left;display:flex;align-items:center;gap:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green-glow);display:inline-block;"></span> EINSATZBEREIT
+        </button>
+        <button class="fzg-status-opt-btn" data-status="einsatz" style="padding:13px;border:1px solid var(--red);background:rgba(212,32,32,0.08);color:var(--red);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:3px;text-align:left;display:flex;align-items:center;gap:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red-glow);display:inline-block;animation:pulse 1.2s infinite;"></span> IM EINSATZ
+        </button>
+        <button class="fzg-status-opt-btn" data-status="wartung" style="padding:13px;border:1px solid var(--yellow);background:rgba(232,184,32,0.08);color:var(--yellow);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:3px;text-align:left;display:flex;align-items:center;gap:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--yellow);display:inline-block;"></span> IN WARTUNG
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════════
+// AUTH SYSTEM — NUR ADMIN CODE, ALLE ANDEREN HABEN VOLLEN ZUGRIFF
+// Admin kann einzelne Funktionen sperren/freischalten
+// ════════════════════════════════════════════════════════════════════════════════
+const ADMIN_CODE = 'BWFWZugangsCode';
+let isAdmin = false;
+
+// Berechtigungen — true = offen für alle, false = gesperrt (nur Admin)
+let permissions = {
+  'person_erstellen':   true,
+  'person_loeschen':    true,
+  'fahrzeug_erstellen': true,
+  'fahrzeug_loeschen':  true,
+  'protokoll_anlegen':  true,
+  'alarm_anlegen':      true,
+  'einsatz_zuweisen':   true,
+};
+
+const PERM_LABELS = {
+  'person_erstellen':   'Person erstellen',
+  'person_loeschen':    'Person löschen',
+  'fahrzeug_erstellen': 'Fahrzeug erstellen',
+  'fahrzeug_loeschen':  'Fahrzeug löschen',
+  'protokoll_anlegen':  'Protokoll anlegen',
+  'alarm_anlegen':      'Alarm anlegen',
+  'einsatz_zuweisen':   'Einsatz zuweisen',
+};
+
+function can(perm) {
+  return isAdmin || permissions[perm] !== false;
+}
+
+function requirePerm(perm, action) {
+  if(can(perm)) { action(); return; }
+  openAdminLogin(() => action());
+}
+
+function openAdminLogin(onSuccess) {
+  document.getElementById('lockSubText').textContent = 'Diese Funktion ist gesperrt. Admin-Code eingeben:';
+  document.getElementById('adminCodeInput').value = '';
+  document.getElementById('lockError').style.display = 'none';
+  document.getElementById('adminCodeInput').classList.remove('error');
+  document.getElementById('adminLockOverlay').style.display = 'flex';
+  _pendingLoginCb = onSuccess || null;
+  setTimeout(() => document.getElementById('adminCodeInput').focus(), 100);
+}
+
+let _pendingLoginCb = null;
+
+document.getElementById('adminLockBtn').addEventListener('click', () => {
+  if(isAdmin) {
+    isAdmin = false;
+    updateAdminUI();
+    toast('Admin-Modus deaktiviert', 'warn');
+  } else {
+    document.getElementById('lockSubText').textContent = 'Admin-Zugangscode eingeben:';
+    document.getElementById('adminCodeInput').value = '';
+    document.getElementById('lockError').style.display = 'none';
+    document.getElementById('adminCodeInput').classList.remove('error');
+    document.getElementById('adminLockOverlay').style.display = 'flex';
+    _pendingLoginCb = null;
+    setTimeout(() => document.getElementById('adminCodeInput').focus(), 100);
+  }
+});
+
+document.getElementById('lockCancelBtn').addEventListener('click', () => {
+  document.getElementById('adminLockOverlay').style.display = 'none';
+  _pendingLoginCb = null;
+});
+
+document.getElementById('adminCodeSubmit').addEventListener('click', submitAdminCode);
+document.getElementById('adminCodeInput').addEventListener('keydown', e => { if(e.key==='Enter') submitAdminCode(); });
+
+function submitAdminCode() {
+  const val = document.getElementById('adminCodeInput').value.trim();
+  if(val === ADMIN_CODE) {
+    isAdmin = true;
+    document.getElementById('adminLockOverlay').style.display = 'none';
+    updateAdminUI();
+    toast('Admin-Modus aktiviert ✔', 'ok');
+    if(_pendingLoginCb) { _pendingLoginCb(); _pendingLoginCb = null; }
+  } else {
+    const inp = document.getElementById('adminCodeInput');
+    inp.classList.add('error');
+    document.getElementById('lockError').textContent = 'Falscher Code. Zugang verweigert.';
+    document.getElementById('lockError').style.display = 'block';
+    inp.value = '';
+    setTimeout(() => inp.classList.remove('error'), 400);
+  }
+}
+
+function updateAdminUI() {
+  const badge = document.getElementById('adminBadge');
+  const lockBtn = document.getElementById('adminLockBtn');
+  if(isAdmin) {
+    badge.textContent = '🔓 ADMIN';
+    badge.style.borderColor = 'var(--yellow)';
+    badge.style.color = 'var(--yellow)';
+    badge.classList.add('visible');
+    lockBtn.textContent = '🔓';
+    lockBtn.title = 'Admin-Modus deaktivieren';
+    document.getElementById('permPanelBtn').style.display = 'block';
+  } else {
+    badge.classList.remove('visible');
+    lockBtn.textContent = '🔒';
+    lockBtn.title = 'Admin-Modus aktivieren';
+    document.getElementById('permPanelBtn').style.display = 'none';
+    document.getElementById('permPanel').style.display = 'none';
+  }
+  if(currentPage==='kraefte') renderKraefte(document.querySelector('.kt-btn.active-btn')?.dataset.filter||'alle');
+  if(currentPage==='fahrzeuge') renderFahrzeuge();
+}
+
+document.getElementById('permPanelBtn').addEventListener('click', () => {
+  renderPermPanel();
+  const p = document.getElementById('permPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+});
+
+function renderPermPanel() {
+  const list = document.getElementById('permList');
+  list.innerHTML = Object.entries(PERM_LABELS).map(([key, label]) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-size:13px;font-weight:600;">${label}</div>
+        <div style="font-size:11px;color:var(--text-dim);">${permissions[key] ? '🟢 Offen für alle' : '🔴 Nur Admin'}</div>
+      </div>
+      <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;cursor:pointer;">
+        <input type="checkbox" ${permissions[key] ? 'checked' : ''} data-perm="${key}"
+          style="opacity:0;width:0;height:0;position:absolute;"
+          onchange="togglePerm('${key}',this.checked)">
+        <span style="position:absolute;cursor:pointer;inset:0;border-radius:24px;
+          background:${permissions[key] ? 'var(--green)' : 'var(--border2)'};transition:0.2s;display:block;">
+          <span style="position:absolute;height:18px;width:18px;left:${permissions[key]?'23px':'3px'};bottom:3px;
+            border-radius:50%;background:white;transition:0.2s;display:block;"></span>
+        </span>
+      </label>
+    </div>`).join('');
+}
+
+function togglePerm(key, val) {
+  permissions[key] = val;
+  renderPermPanel();
+  toast('"' + PERM_LABELS[key] + '" ' + (val ? 'freigegeben 🟢' : 'gesperrt 🔴'), val ? 'ok' : 'warn');
+}
+
+updateAdminUI();
+
+// ════════════════════════════════════════════════════════════════════════════════
+// STATUS MODAL
+
+// ════════════════════════════════════════════════════════════════════════════════
+let statusModalPersonId = null;
+
+document.getElementById('closeStatusModal').addEventListener('click', ()=>document.getElementById('statusModal').classList.remove('open'));
+
+document.querySelectorAll('.status-opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const p = personal.find(x=>x.id===statusModalPersonId);
+    if(!p) return;
+    p.status = btn.dataset.status;
+    document.getElementById('statusModal').classList.remove('open');
+    renderKraefte(document.querySelector('.kt-btn.active-btn')?.dataset.filter||'alle');
+    updateDashboard();
+    const labels = {bereit:'Einsatzbereit',einsatz:'Im Einsatz',pause:'Pause'};
+    toast(`${p.name} → ${labels[p.status]}`);
+  });
+});
+
+function openStatusModal(id) {
+  statusModalPersonId = id;
+  const p = personal.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('statusModalName').textContent = p.name;
+  document.getElementById('statusModal').classList.add('open');
+}
+
+// Fahrzeug Status Modal
+function openFzgStatusModal(uid) {
+  const f = fahrzeuge.find(x=>x.uid===uid);
+  if(!f) return;
+  document.getElementById('fzgStatusModalName').textContent = f.name;
+  document.getElementById('fzgStatusModal').dataset.uid = uid;
+  document.getElementById('fzgStatusModal').classList.add('open');
+}
+
+document.getElementById('closeFzgStatusModal').addEventListener('click', ()=>document.getElementById('fzgStatusModal').classList.remove('open'));
+document.querySelectorAll('.fzg-status-opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const uid = document.getElementById('fzgStatusModal').dataset.uid;
+    const f = fahrzeuge.find(x=>x.uid===uid);
+    if(!f) return;
+    f.status = btn.dataset.status;
+    document.getElementById('fzgStatusModal').classList.remove('open');
+    renderFahrzeuge(); updateDashboard();
+    const labels = {bereit:'Einsatzbereit',einsatz:'Im Einsatz',wartung:'In Wartung'};
+    toast(`${f.name} → ${labels[f.status]}`);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// EINSATZ-ZUWEISUNG MODAL (Personen + Fahrzeuge Tabs)
+// ════════════════════════════════════════════════════════════════════════════════
+let einsatzSelected = new Set();
+let einsatzFzgSelected = new Set();
+let einsatzTab = 'personen';
+
+document.getElementById('einsatzZuweisBtn').addEventListener('click', () => {
+  requirePerm('einsatz_zuweisen', () => {
+    einsatzSelected = new Set(personal.filter(p=>p.status==='einsatz').map(p=>p.id));
+    einsatzFzgSelected = new Set(fahrzeuge.filter(f=>f.status==='einsatz').map(f=>f.uid));
+    einsatzTab = 'personen';
+    renderEinsatzTabs();
+    document.getElementById('einsatzZuweisModal').classList.add('open');
+  });
+});
+
+document.getElementById('closeEinsatzModal').addEventListener('click', ()=>document.getElementById('einsatzZuweisModal').classList.remove('open'));
+
+document.getElementById('einsatzAlleZurueck').addEventListener('click', () => {
+  if(einsatzTab==='personen') einsatzSelected.clear();
+  else einsatzFzgSelected.clear();
+  renderEinsatzTabs();
+});
+
+document.getElementById('einsatzBestaetigen').addEventListener('click', () => {
+  // Personen
+  personal.forEach(p => {
+    if(einsatzSelected.has(p.id)) p.status='einsatz';
+    else if(p.status==='einsatz') p.status='bereit';
+  });
+  // Fahrzeuge
+  fahrzeuge.forEach(f => {
+    if(einsatzFzgSelected.has(f.uid)) f.status='einsatz';
+    else if(f.status==='einsatz') f.status='bereit';
+  });
+  document.getElementById('einsatzZuweisModal').classList.remove('open');
+  renderKraefte(document.querySelector('.kt-btn.active-btn')?.dataset.filter||'alle');
+  renderFahrzeuge();
+  updateDashboard();
+  toast(`${einsatzSelected.size} Person(en), ${einsatzFzgSelected.size} Fahrzeug(e) zugewiesen`, 'ok');
+});
+
+// Tab switching
+document.getElementById('einsatzTabPersonen').addEventListener('click', ()=>{ einsatzTab='personen'; renderEinsatzTabs(); });
+document.getElementById('einsatzTabFahrzeuge').addEventListener('click', ()=>{ einsatzTab='fahrzeuge'; renderEinsatzTabs(); });
+
+function renderEinsatzTabs() {
+  const tp = document.getElementById('einsatzTabPersonen');
+  const tf = document.getElementById('einsatzTabFahrzeuge');
+  tp.style.borderBottomColor = einsatzTab==='personen' ? 'var(--red)' : 'transparent';
+  tp.style.color = einsatzTab==='personen' ? 'var(--text)' : 'var(--text-dim)';
+  tf.style.borderBottomColor = einsatzTab==='fahrzeuge' ? 'var(--red)' : 'transparent';
+  tf.style.color = einsatzTab==='fahrzeuge' ? 'var(--text)' : 'var(--text-dim)';
+
+  if(einsatzTab==='personen') renderEinsatzPersonList();
+  else renderEinsatzFzgList();
+
+  const totalP = einsatzSelected.size;
+  const totalF = einsatzFzgSelected.size;
+  document.getElementById('einsatzSelectedCount').textContent = `${totalP} Person(en) · ${totalF} Fahrzeug(e)`;
+}
+
+function renderEinsatzPersonList() {
+  const list = document.getElementById('einsatzPersonList');
+  if(personal.length===0) {
+    list.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px;">Keine Personen eingetragen</div>';
+    return;
+  }
+  list.innerHTML = personal.map(p => {
+    const sel = einsatzSelected.has(p.id);
+    const dotColor = p.status==='bereit'?'var(--green)':p.status==='einsatz'?'var(--red)':'var(--yellow)';
+    return `<div class="einsatz-person-row ${sel?'selected':''}" data-pid="${p.id}">
+      <div class="epr-status" style="background:${dotColor};"></div>
+      <div class="epr-info">
+        <div class="epr-name">${p.name}</div>
+        <div class="epr-rank">${p.rang} · ${p.funk}</div>
+      </div>
+      <div class="epr-check">✔</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.einsatz-person-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const pid = parseInt(row.dataset.pid);
+      if(einsatzSelected.has(pid)) einsatzSelected.delete(pid);
+      else einsatzSelected.add(pid);
+      renderEinsatzTabs();
+    });
+  });
+}
+
+function renderEinsatzFzgList() {
+  const list = document.getElementById('einsatzPersonList');
+  if(fahrzeuge.length===0) {
+    list.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px;">Keine Fahrzeuge eingetragen</div>';
+    return;
+  }
+  list.innerHTML = fahrzeuge.map(f => {
+    const sel = einsatzFzgSelected.has(f.uid);
+    const dotColor = f.status==='bereit'?'var(--green)':f.status==='einsatz'?'var(--red)':'var(--yellow)';
+    return `<div class="einsatz-person-row ${sel?'selected':''}" data-fuid="${f.uid}">
+      <div class="epr-status" style="background:${dotColor};"></div>
+      <div class="epr-info">
+        <div class="epr-name">${f.name}</div>
+        <div class="epr-rank">${f.type} · ${f.id} · Besatzung: ${f.besatzung}</div>
+      </div>
+      <div class="epr-check">✔</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.einsatz-person-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const uid = row.dataset.fuid;
+      if(einsatzFzgSelected.has(uid)) einsatzFzgSelected.delete(uid);
+      else einsatzFzgSelected.add(uid);
+      renderEinsatzTabs();
+    });
+  });
+}
+</script>
+<div class="modal-overlay" id="addPersonModal">
+  <div class="modal" style="width:480px;">
+    <div class="modal-hdr">
+      <div class="modal-title">Person hinzufügen</div>
+      <button class="close-btn" id="closePersonModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <div class="inp-lbl">Roblox Username</div>
+        <input class="inp" id="ap-name" placeholder="z.B. xX_FireFighter_Xx">
+      </div>
+      <div>
+        <div class="inp-lbl">Dienstgrad / Rang</div>
+        <select class="inp" id="ap-rang">
+          <optgroup label="── Leitungsebene ──────────────">
+            <option>Leitende/r Branddirektor/-in</option>
+            <option>Branddirektor/-in</option>
+            <option>Oberbrandrätin/-rat</option>
+            <option>Brandrätin/-rat mit Zulage</option>
+            <option>Brandrätin/-rat</option>
+            <option>Brandreferendar/-in</option>
+          </optgroup>
+          <optgroup label="── Gehobener Dienst ────────────">
+            <option>Amtsrätin/-rat</option>
+            <option>Brandamtfrau/-mann</option>
+            <option>Brandoberinspektor/-in</option>
+            <option>Brandinspektor/-in</option>
+            <option>Brandoberinspektoranwärter/-in</option>
+          </optgroup>
+          <optgroup label="── Sachgebiete ─────────────────">
+            <option>Sachgebietsleiter der Personal &amp; Ausbildung</option>
+            <option>Sachgebiet Personal &amp; Ausbildung</option>
+            <option>Disponent Leitstelle</option>
+          </optgroup>
+          <optgroup label="── Mittlerer Dienst ────────────">
+            <option>Erster Hauptbrandmeister/-in mit Zulage</option>
+            <option>Erste/r Hauptbrandmeister/-in</option>
+            <option>Hauptbrandmeister/-in</option>
+            <option>Oberbrandmeister/-in</option>
+            <option>Oberbrandmeisteranwärter/-in</option>
+          </optgroup>
+          <optgroup label="── Ausbildung / Schule ─────────">
+            <option>Personalleitung / Personalmanagement</option>
+            <option>Ausbildungsleiter / Ausbildungskraft</option>
+            <option>TMB/DLK Ausbilder</option>
+            <option>FLF Ausbilder</option>
+            <option>FüAss Ausbilder</option>
+            <option>Führungsassistent</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="inp-row">
+        <div>
+          <div class="inp-lbl">Status</div>
+          <select class="inp" id="ap-status">
+            <option value="bereit">Einsatzbereit</option>
+            <option value="pause">Pause</option>
+            <option value="einsatz">Im Einsatz</option>
+          </select>
+        </div>
+        <div>
+          <div class="inp-lbl">Funkrufname</div>
+          <input class="inp" id="ap-funk" placeholder="z.B. OBM 1/W1">
+        </div>
+      </div>
+      <div>
+        <div class="inp-lbl">Lehrgänge / Qualifikationen</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;" id="ap-quals-wrap">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Atemschutz (AS)" style="accent-color:var(--red);"> Atemschutz (AS)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Maschinist" style="accent-color:var(--red);"> Maschinist
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Maschinist TMB" style="accent-color:var(--red);"> Maschinist TMB
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Maschinist DLK" style="accent-color:var(--red);"> Maschinist DLK
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Maschinist FLF" style="accent-color:var(--red);"> Maschinist FLF
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Truppführer" style="accent-color:var(--red);"> Truppführer
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Gruppenführer" style="accent-color:var(--red);"> Gruppenführer
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Führungsassistent" style="accent-color:var(--red);"> Führungsassistent
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="GW-Führerschein" style="accent-color:var(--red);"> GW-Führerschein
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:7px 10px;border:1px solid var(--border2);color:var(--text-mid);">
+            <input type="checkbox" value="Sanitäter" style="accent-color:var(--red);"> Sanitäter
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelPersonModal">Abbrechen</button>
+      <button class="btn primary" id="confirmPersonModal">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: FAHRZEUG HINZUFÜGEN ═════════════════════════════════════════════ -->
+<div class="modal-overlay" id="addFahrzeugModal">
+  <div class="modal" style="width:500px;">
+    <div class="modal-hdr">
+      <div class="modal-title">Fahrzeug hinzufügen</div>
+      <button class="close-btn" id="closeFahrzeugModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="inp-row">
+        <div>
+          <div class="inp-lbl">Kurzbezeichnung (ID)</div>
+          <input class="inp" id="fz-id" placeholder="z.B. LF 20/16">
+        </div>
+        <div>
+          <div class="inp-lbl">Fahrzeugname</div>
+          <input class="inp" id="fz-name" placeholder="z.B. Löschfahrzeug 20/16">
+        </div>
+      </div>
+      <div class="inp-row">
+        <div>
+          <div class="inp-lbl">Fahrzeugtyp</div>
+          <select class="inp" id="fz-type">
+            <option>Löschfahrzeug</option>
+            <option>Tanklöschfahrzeug</option>
+            <option>Rüstfahrzeug</option>
+            <option>Hubrettungsfahrzeug</option>
+            <option>Führungsfahrzeug</option>
+            <option>Sonderfahrzeug</option>
+            <option>Mehrzweckfahrzeug</option>
+            <option>Sonstiges</option>
+          </select>
+        </div>
+        <div>
+          <div class="inp-lbl">Status</div>
+          <select class="inp" id="fz-status">
+            <option value="bereit">Einsatzbereit</option>
+            <option value="wartung">In Wartung</option>
+            <option value="einsatz">Im Einsatz</option>
+          </select>
+        </div>
+      </div>
+      <div class="inp-row">
+        <div>
+          <div class="inp-lbl">Besatzung (z.B. 1/8)</div>
+          <input class="inp" id="fz-besatzung" placeholder="1/8">
+        </div>
+        <div>
+          <div class="inp-lbl">Tankvolumen</div>
+          <input class="inp" id="fz-tank" placeholder="z.B. 2000 l (leer lassen = —)">
+        </div>
+      </div>
+      <div>
+        <div class="inp-lbl">Pumpenleistung</div>
+        <input class="inp" id="fz-pumpe" placeholder="z.B. 2000 l/min (leer lassen = —)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelFahrzeugModal">Abbrechen</button>
+      <button class="btn primary" id="confirmFahrzeugModal">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Person Modal ──────────────────────────────────────────────────────────────
+document.getElementById('closePersonModal').addEventListener('click', () => document.getElementById('addPersonModal').classList.remove('open'));
+document.getElementById('cancelPersonModal').addEventListener('click', () => document.getElementById('addPersonModal').classList.remove('open'));
+document.getElementById('confirmPersonModal').addEventListener('click', () => {
+  if(!can('person_erstellen')) { toast('Keine Berechtigung','err'); return; }
+  const name = document.getElementById('ap-name').value.trim();
+  if(!name) { toast('Roblox Username eingeben','warn'); return; }
+  const rang = document.getElementById('ap-rang').value;
+  const status = document.getElementById('ap-status').value;
+  const funk = document.getElementById('ap-funk').value.trim() || 'FM/W1';
+  const quals = Array.from(document.querySelectorAll('#ap-quals-wrap input:checked')).map(cb=>cb.value);
+  personal.push({id:Date.now(), rang, name, funk, status, quals, seit:''});
+  document.getElementById('ap-name').value='';
+  document.getElementById('ap-funk').value='';
+  document.querySelectorAll('#ap-quals-wrap input').forEach(cb=>cb.checked=false);
+  document.getElementById('addPersonModal').classList.remove('open');
+  renderKraefte(document.querySelector('.kt-btn.active-btn')?.dataset.filter||'alle');
+  updateDashboard();
+  toast('Person hinzugefügt ✔');
+});
+</script>
+</body>
+</html>
